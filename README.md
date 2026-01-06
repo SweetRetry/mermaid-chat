@@ -1,31 +1,73 @@
-# shadcn/ui monorepo template
+# Next.js Monorepo Starter
 
-This template is for creating a monorepo with shadcn/ui.
+A modern monorepo template powered by **Turborepo**, **Next.js**, **shadcn/ui**, **Biome**, and **Knip**.
 
-## Usage
+## What's Inside
+
+### Apps
+
+- `apps/web` - Next.js 16 application with App Router and Turbopack
+
+### Packages
+
+- `packages/ui` - Shared React component library with shadcn/ui
+- `packages/typescript-config` - Shared TypeScript configurations
+
+### Tools
+
+- [Turborepo](https://turbo.build/repo) - High-performance build system
+- [Biome](https://biomejs.dev) - Fast formatter and linter
+- [Knip](https://knip.dev) - Find unused files, dependencies and exports
+- [pnpm](https://pnpm.io) - Fast, disk space efficient package manager
+
+## Getting Started
 
 ```bash
-pnpm dlx shadcn@latest init
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm dev
+
+# Build all apps and packages
+pnpm build
+
+# Lint and format code
+pnpm check
+
+# Find unused code
+pnpm knip
 ```
 
-## Adding components
+## Adding UI Components
 
-To add components to your app, run the following command at the root of your `web` app:
+To add shadcn/ui components, run at the project root:
 
 ```bash
 pnpm dlx shadcn@latest add button -c apps/web
 ```
 
-This will place the ui components in the `packages/ui/src/components` directory.
+Components will be placed in `packages/ui/src/components`.
 
-## Tailwind
+## Using Components
 
-Your `tailwind.config.ts` and `globals.css` are already set up to use the components from the `ui` package.
-
-## Using components
-
-To use the components in your app, import them from the `ui` package.
+Import components from the `@workspace/ui` package:
 
 ```tsx
 import { Button } from "@workspace/ui/components/button"
+```
+
+## Project Structure
+
+```
+.
+├── apps/
+│   └── web/                 # Next.js application
+├── packages/
+│   ├── ui/                  # Shared UI components
+│   └── typescript-config/   # Shared TS configs
+├── biome.json               # Biome configuration
+├── knip.json                # Knip configuration
+├── turbo.json               # Turborepo configuration
+└── pnpm-workspace.yaml      # pnpm workspace config
 ```

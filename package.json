@@ -5,13 +5,16 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "biome check --write .",
+    "knip": "knip"
   },
   "devDependencies": {
-    "@workspace/eslint-config": "workspace:*",
+    "@biomejs/biome": "^1.9.4",
     "@workspace/typescript-config": "workspace:*",
-    "prettier": "^3.7.4",
+    "knip": "^5.44.0",
     "turbo": "^2.6.3",
     "typescript": "5.7.3"
   },

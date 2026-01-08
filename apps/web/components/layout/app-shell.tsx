@@ -1,15 +1,15 @@
 "use client"
 
 import { ChatPanel } from "@/components/chat/chat-panel"
+import { ConversationListView } from "@/components/chat/conversation-list-view"
 import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
 import { useChatStore } from "@/lib/store/chat-store"
-import { Button } from "@workspace/ui/components/button"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { useCallback, useEffect } from "react"
 import type { Layout } from "react-resizable-panels"
 
@@ -24,6 +24,9 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   const loading = useChatStore((state) => state.loadingCount > 0)
   const fetchConversations = useChatStore((state) => state.fetchConversations)
   const onCreateConversation = useChatStore((state) => state.createConversation)
+  const conversations = useChatStore((state) => state.conversations)
+  const onSelectConversation = useChatStore((state) => state.loadConversation)
+  const handleSelectExample = useChatStore((state) => state.handleSelectExample)
 
   const handleLayoutChange = useCallback(
     (layout: Layout) => {
@@ -75,15 +78,6 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
             </div>
           </nav>
         </div>
-
-        <Button
-          onClick={onCreateConversation}
-          size="sm"
-          className="rounded-xl bg-foreground text-background hover:opacity-90 transition-opacity font-bold px-4 shadow-sm h-9"
-        >
-          <Plus className="size-4 mr-1.5" />
-          New Chat
-        </Button>
       </header>
 
       <main className="flex-1 overflow-hidden relative">
@@ -96,24 +90,28 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
           onLayoutChange={handleLayoutChange}
         >
           <ResizablePanel
-            id="preview"
-            defaultSize={75}
-            minSize={30}
-            className="min-w-0"
-            style={{ flexBasis: "75%" }}
+            id="sidebar"
+            defaultSize={20}
+            minSize={15}
+            className="min-w-[200px] border-r"
           >
+            <ConversationListView
+              conversations={conversations}
+              onSelect={onSelectConversation}
+              onCreate={onCreateConversation}
+              onSelectExample={handleSelectExample}
+            />
+          </ResizablePanel>
+
+          <ResizableHandle className="w-0.5 bg-border/20 hover:bg-primary/20 transition-colors" />
+
+          <ResizablePanel id="preview" defaultSize={55} minSize={30} className="min-w-0">
             <MermaidPanel />
           </ResizablePanel>
 
           <ResizableHandle className="w-0.5 bg-border/20 hover:bg-primary/20 transition-colors" />
 
-          <ResizablePanel
-            id="chat"
-            defaultSize={25}
-            minSize={25}
-            className="min-w-0"
-            style={{ flexBasis: "25%" }}
-          >
+          <ResizablePanel id="chat" defaultSize={25} minSize={20} className="min-w-[300px]">
             <ChatPanel key={conversationId ?? "empty"} />
           </ResizablePanel>
         </ResizablePanelGroup>

@@ -26,10 +26,10 @@ import {
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport } from "ai"
+import { MessageSquare } from "lucide-react"
 import { useEffect, useMemo } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatMessage } from "./chat-message"
-import { ConversationListView } from "./conversation-list-view"
 
 interface ChatPanelProps {
   className?: string
@@ -45,8 +45,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
   const conversationId = useChatStore((state) => state.conversationId)
   const conversationDetail = useChatStore((state) => state.conversationDetail)
   const onConversationUpdate = useChatStore((state) => state.handleConversationUpdate)
-  const conversations = useChatStore((state) => state.conversations)
-  const onSelectConversation = useChatStore((state) => state.loadConversation)
   const initialPrompt = useChatStore((state) => state.initialPrompt)
   const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
 
@@ -130,12 +128,15 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
   if (!conversationId) {
     return (
-      <ConversationListView
-        conversations={conversations}
-        onSelect={onSelectConversation}
-        onSelectExample={handleSelectExample}
-        className={className}
-      />
+      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 opacity-50">
+        <MessageSquare className="size-12 text-muted-foreground/40" />
+        <div className="space-y-1">
+          <h3 className="text-lg font-semibold">No Conversation Selected</h3>
+          <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+            Choose a chat from the sidebar or create a new one to get started.
+          </p>
+        </div>
+      </div>
     )
   }
 

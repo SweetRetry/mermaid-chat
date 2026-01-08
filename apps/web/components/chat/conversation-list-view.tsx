@@ -32,6 +32,11 @@ export function ConversationListView({
           <span>New Chat</span>
         </Button>
       </div>
+      <div className="px-4 py-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2">
+          Recent Chats
+        </h3>
+      </div>
       <div className="flex-1 overflow-y-auto p-4 pt-0 space-y-3">
         {conversations.length === 0 ? (
           <EmptyConversationList onSelectExample={onSelectExample} />

@@ -740,7 +740,9 @@ export const PromptInput = ({
         type="file"
       />
       <form className={cn("w-full", className)} onSubmit={handleSubmit} ref={formRef} {...props}>
-        <InputGroup className="overflow-hidden">{children}</InputGroup>
+        <InputGroup className="overflow-hidden rounded-3xl border-none bg-black/5 dark:bg-white/5 shadow-none transition-all group-focus-within:bg-black/8 dark:group-focus-within:bg-white/8">
+          {children}
+        </InputGroup>
       </form>
     </>
   )
@@ -976,10 +978,10 @@ interface SpeechRecognition extends EventTarget {
   lang: string
   start(): void
   stop(): void
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null
-  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any) | null
-  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any) | null
+  onstart: ((this: SpeechRecognition, ev: Event) => void) | null
+  onend: ((this: SpeechRecognition, ev: Event) => void) | null
+  onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => void) | null
+  onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => void) | null
 }
 
 interface SpeechRecognitionEvent extends Event {

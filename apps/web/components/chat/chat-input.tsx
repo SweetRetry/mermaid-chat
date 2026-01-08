@@ -29,6 +29,9 @@ interface ChatInputProps {
   onModelChange: (value: string) => void
 }
 
+import { Button } from "@workspace/ui/components/button"
+import { Plus, Wand2 } from "lucide-react"
+
 export function ChatInput({
   input,
   onInputChange,
@@ -38,11 +41,13 @@ export function ChatInput({
   placeholder = "Describe the diagram you want to create...",
   model,
   onModelChange,
-}: ChatInputProps) {
+  className,
+}: ChatInputProps & { className?: string }) {
   const isDisabled = disabled ?? (status === "streaming" || !input.trim())
 
   return (
     <PromptInput
+      className={className}
       onSubmit={({ text }) => {
         if (!text.trim()) return
         onSubmit(text)
@@ -53,22 +58,53 @@ export function ChatInput({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           placeholder={placeholder}
+          className="min-h-[100px] text-lg py-4"
         />
       </PromptInputBody>
-      <PromptInputFooter>
-        <Select value={model} onValueChange={onModelChange}>
-          <SelectTrigger size="sm" className="w-[110px]">
-            <SelectValue placeholder="Model" />
-          </SelectTrigger>
-          <SelectContent>
-            {MODELS.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <PromptInputSubmit status={status} disabled={isDisabled} />
+      <PromptInputFooter className="px-4 pb-4">
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5"
+          >
+            <Plus className="size-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-2 rounded-full px-3 hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground"
+          >
+            <Wand2 className="size-4" />
+            <span className="text-xs font-medium">Tools</span>
+          </Button>
+        </div>
+
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-3">
+          <Select value={model} onValueChange={onModelChange}>
+            <SelectTrigger
+              size="sm"
+              className="w-auto min-w-[100px] h-8 rounded-full border-none bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            >
+              <SelectValue placeholder="Model" />
+            </SelectTrigger>
+            <SelectContent>
+              {MODELS.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <PromptInputSubmit
+            status={status}
+            disabled={isDisabled}
+            className="size-8 rounded-full shadow-lg"
+          />
+        </div>
       </PromptInputFooter>
     </PromptInput>
   )

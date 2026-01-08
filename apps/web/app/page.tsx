@@ -3,7 +3,6 @@
 import { ChatInput } from "@/components/chat/chat-input"
 import { useChatStore } from "@/lib/store/chat-store"
 import { Button } from "@workspace/ui/components/button"
-import { MessageSquare } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
@@ -48,46 +47,51 @@ export default function Page() {
   }
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-2xl space-y-8">
-        {/* Hero Section */}
-        <div className="text-center space-y-4">
-          <div className="size-16 rounded-3xl bg-primary/10 flex items-center justify-center mx-auto">
-            <MessageSquare className="size-8 text-primary" />
+    <div className="h-full flex flex-col items-center justify-center -mt-20 p-6 bg-background">
+      <div className="w-full max-w-3xl space-y-10">
+        {/* Hero Section - Matching Image Style Exactly */}
+        <div className="space-y-4 px-4">
+          <div className="flex items-center gap-3 text-2xl md:text-3xl font-medium tracking-tight">
+            <span className="text-yellow-400">✨</span>
+            <span className="text-foreground/80">ziming, 你好</span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Mermaid Chat</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Describe what you want to visualize and let AI generate Mermaid diagrams for you.
-          </p>
+          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight text-foreground/90">
+            需要我为你做些什么？
+          </h1>
         </div>
 
         {/* Input Section */}
-        <ChatInput
-          input={input}
-          onInputChange={setInput}
-          onSubmit={handleSubmit}
-          status={isPending ? "streaming" : "ready"}
-          disabled={isPending || !input.trim()}
-          model={model}
-          onModelChange={setModel}
-        />
+        <div className="relative">
+          <ChatInput
+            input={input}
+            onInputChange={setInput}
+            onSubmit={handleSubmit}
+            status={isPending ? "streaming" : "ready"}
+            disabled={isPending}
+            placeholder="问问 Mermaid..."
+            model={model}
+            onModelChange={setModel}
+            className="shadow-2xl shadow-primary/5"
+          />
+        </div>
 
-        {/* Examples Section */}
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground text-center">Try an example</p>
-          <div className="grid grid-cols-2 gap-3">
-            {EXAMPLES.map((example) => (
-              <Button
-                key={example.label}
-                variant="outline"
-                className="h-auto py-3 px-4 text-left justify-start"
-                disabled={isPending}
-                onClick={() => handleSubmit(example.prompt)}
-              >
-                <span className="text-sm font-medium">{example.label}</span>
-              </Button>
-            ))}
-          </div>
+        {/* Examples Section - Suggestions Chips */}
+        <div className="flex flex-wrap justify-center gap-3">
+          {EXAMPLES.map((example) => (
+            <Button
+              key={example.label}
+              variant="outline"
+              className="rounded-full h-11 px-6 bg-secondary/50 border-none hover:bg-secondary/80 transition-all text-sm font-medium flex items-center gap-2"
+              disabled={isPending}
+              onClick={() => handleSubmit(example.prompt)}
+            >
+              {example.label === "User Login Flow" && <span className="text-lg">🍌</span>}
+              {example.label === "API Sequence" && <span className="text-lg">📝</span>}
+              {example.label === "Project Timeline" && <span className="text-lg">🎓</span>}
+              {example.label === "E-commerce Model" && <span className="text-lg">⚡</span>}
+              <span>{example.label}</span>
+            </Button>
+          ))}
         </div>
       </div>
     </div>

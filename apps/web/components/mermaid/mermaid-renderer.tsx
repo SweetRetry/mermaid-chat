@@ -1,6 +1,9 @@
 "use client"
 
+import { useGesture } from "@use-gesture/react"
+import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
+import { Maximize2, Minus, Plus, RotateCcw } from "lucide-react"
 import mermaid from "mermaid"
 import { useEffect, useRef, useState } from "react"
 
@@ -17,21 +20,14 @@ mermaid.initialize({
   fontFamily: "inherit",
 })
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+const MIN_SCALE = 0.2
+const MAX_SCALE = 4
 
 export function MermaidRenderer({ code, className, onSvgChange }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [svg, setSvg] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
-  const dragRef = useRef<{
-    pointerId: number | null
-    startX: number
-    startY: number
-    originX: number
-    originY: number
-  }>({ pointerId: null, startX: 0, startY: 0, originX: 0, originY: 0 })
 
   useEffect(() => {
     if (!code.trim()) {
@@ -59,30 +55,36 @@ export function MermaidRenderer({ code, className, onSvgChange }: MermaidRendere
     renderDiagram()
   }, [code, onSvgChange])
 
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const handleWheel = (event: WheelEvent) => {
-      event.preventDefault()
-      const rect = container.getBoundingClientRect()
-      const mouseX = event.clientX - rect.left
-      const mouseY = event.clientY - rect.top
-      const direction = event.deltaY > 0 ? 0.9 : 1.1
-
-      setTransform((prev) => {
-        const nextScale = clamp(prev.scale * direction, 0.2, 4)
-        if (nextScale === prev.scale) return prev
-        const scaleRatio = nextScale / prev.scale
-        const nextX = mouseX - (mouseX - prev.x) * scaleRatio
-        const nextY = mouseY - (mouseY - prev.y) * scaleRatio
-        return { x: nextX, y: nextY, scale: nextScale }
-      })
+  useGesture(
+    {
+      onDrag: ({ offset: [x, y] }) => {
+        setTransform((prev) => ({ ...prev, x, y }))
+      },
+      onPinch: ({ offset: [scale] }) => {
+        setTransform((prev) => ({ ...prev, scale }))
+      },
+      onWheel: ({ delta: [, dy], event }) => {
+        event.preventDefault()
+        setTransform((prev) => ({
+          ...prev,
+          scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, prev.scale - dy * 0.001)),
+        }))
+      },
+    },
+    {
+      target: containerRef,
+      drag: {
+        from: () => [transform.x, transform.y],
+      },
+      pinch: {
+        scaleBounds: { min: MIN_SCALE, max: MAX_SCALE },
+        from: () => [transform.scale, 0],
+      },
+      wheel: {
+        eventOptions: { passive: false },
+      },
     }
-
-    container.addEventListener("wheel", handleWheel, { passive: false })
-    return () => container.removeEventListener("wheel", handleWheel)
-  }, [])
+  )
 
   if (!code.trim() || !svg) {
     return null
@@ -103,54 +105,64 @@ export function MermaidRenderer({ code, className, onSvgChange }: MermaidRendere
     <div
       ref={containerRef}
       className={cn(
-        "relative h-full overflow-hidden p-4 select-none touch-none",
-        isDragging ? "cursor-grabbing" : "cursor-grab",
+        "relative h-full overflow-hidden select-none touch-none bg-muted/5 cursor-grab active:cursor-grabbing",
         className
       )}
-      onPointerDown={(event) => {
-        if (event.button !== 0) return
-        dragRef.current = {
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          originX: transform.x,
-          originY: transform.y,
-        }
-        setIsDragging(true)
-        event.currentTarget.setPointerCapture(event.pointerId)
-      }}
-      onPointerMove={(event) => {
-        if (!isDragging || dragRef.current.pointerId !== event.pointerId) return
-        const dx = event.clientX - dragRef.current.startX
-        const dy = event.clientY - dragRef.current.startY
-        setTransform((prev) => ({
-          x: dragRef.current.originX + dx,
-          y: dragRef.current.originY + dy,
-          scale: prev.scale,
-        }))
-      }}
-      onPointerUp={(event) => {
-        if (dragRef.current.pointerId !== event.pointerId) return
-        setIsDragging(false)
-        dragRef.current.pointerId = null
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }}
-      onPointerCancel={(event) => {
-        if (dragRef.current.pointerId !== event.pointerId) return
-        setIsDragging(false)
-        dragRef.current.pointerId = null
-        event.currentTarget.releasePointerCapture(event.pointerId)
-      }}
     >
+      {/* Diagram Layer */}
       <div
-        className="absolute inset-0 flex items-center justify-center"
+        className="w-full h-full flex items-center justify-center p-8"
         style={{
           transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          transformOrigin: "0 0",
+          transformOrigin: "center center",
         }}
         // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
         dangerouslySetInnerHTML={{ __html: svg }}
       />
+
+      {/* Floating Controls */}
+      <div
+        className="absolute bottom-4 right-4 flex flex-col gap-1.5 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-10 scale-90 sm:scale-100"
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <Button
+          variant="secondary"
+          size="icon"
+          className="size-8 rounded-lg"
+          onClick={() =>
+            setTransform((p) => ({ ...p, scale: Math.min(p.scale + 0.2, MAX_SCALE) }))
+          }
+          title="Zoom In"
+        >
+          <Plus className="size-4" />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="size-8 rounded-lg"
+          onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
+          title="Reset"
+        >
+          <RotateCcw className="size-3.5" />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="size-8 rounded-lg"
+          onClick={() =>
+            setTransform((p) => ({ ...p, scale: Math.max(p.scale - 0.2, MIN_SCALE) }))
+          }
+          title="Zoom Out"
+        >
+          <Minus className="size-4" />
+        </Button>
+      </div>
+
+      {/* Scale Indicator */}
+      <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-background/50 backdrop-blur-sm rounded-full border text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+        <Maximize2 className="size-3" />
+        {(transform.scale * 100).toFixed(0)}%
+      </div>
     </div>
   )
 }

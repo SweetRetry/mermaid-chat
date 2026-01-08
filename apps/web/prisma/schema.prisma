@@ -13,8 +13,7 @@ model Conversation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  messages      Message[]
-  chartVersions ChartVersion[]
+  messages Message[]
 
   @@map("conversations")
 }
@@ -26,24 +25,8 @@ model Message {
   content        String
   createdAt      DateTime @default(now()) @map("created_at")
 
-  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  chartVersions ChartVersion[]
-
-  @@index([conversationId])
-  @@map("messages")
-}
-
-model ChartVersion {
-  id             String   @id @default(uuid())
-  conversationId String   @map("conversation_id")
-  messageId      String?  @map("message_id")
-  mermaidCode    String   @map("mermaid_code")
-  version        Int
-  createdAt      DateTime @default(now()) @map("created_at")
-
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  message      Message?     @relation(fields: [messageId], references: [id])
 
-  @@index([conversationId])
-  @@map("chart_versions")
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("messages")
 }

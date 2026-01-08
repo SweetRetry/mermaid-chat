@@ -184,28 +184,6 @@ export async function POST(req: Request) {
     async onFinish({ text, toolCalls, toolResults }) {
       if (typeof conversationId !== "string" || !lastUserText) return
 
-      const now = new Date()
-
-      const messageCount = await prisma.message.count({
-        where: { conversationId },
-      })
-
-      if (messageCount === 0) {
-        await prisma.conversation.update({
-          where: { id: conversationId },
-          data: { title: generateTitle(lastUserText) },
-        })
-      }
-
-      // Save user message
-      await prisma.message.create({
-        data: {
-          conversationId,
-          role: "user",
-          content: JSON.stringify([{ type: "text", text: lastUserText }]),
-        },
-      })
-
       // Build assistant message parts
       const assistantParts: UIMessage["parts"] = []
       if (text) {
@@ -226,38 +204,42 @@ export async function POST(req: Request) {
         }
       }
 
-      const assistantMessage = await prisma.message.create({
-        data: {
-          conversationId,
-          role: "assistant",
-          content: JSON.stringify(assistantParts),
-        },
-      })
+      // Use transaction to batch all database operations
+      await prisma.$transaction(async (tx) => {
+        // Check if this is the first message and update title
+        const existingMessage = await tx.message.findFirst({
+          where: { conversationId },
+          select: { id: true },
+        })
 
-      const chartToolCall = toolCalls?.find((tc) => tc.toolName === "update_chart")
-      if (chartToolCall && "input" in chartToolCall) {
-        const input = chartToolCall.input as { code?: string }
-        if (input?.code) {
-          const latestVersion = await prisma.chartVersion.findFirst({
-            where: { conversationId },
-            orderBy: { version: "desc" },
-            select: { version: true },
-          })
-
-          await prisma.chartVersion.create({
-            data: {
-              conversationId,
-              messageId: assistantMessage.id,
-              mermaidCode: input.code,
-              version: (latestVersion?.version ?? 0) + 1,
-            },
+        if (!existingMessage) {
+          await tx.conversation.update({
+            where: { id: conversationId },
+            data: { title: generateTitle(lastUserText) },
           })
         }
-      }
 
-      await prisma.conversation.update({
-        where: { id: conversationId },
-        data: { updatedAt: now },
+        // Create both messages in batch
+        await tx.message.createMany({
+          data: [
+            {
+              conversationId,
+              role: "user",
+              content: JSON.stringify([{ type: "text", text: lastUserText }]),
+            },
+            {
+              conversationId,
+              role: "assistant",
+              content: JSON.stringify(assistantParts),
+            },
+          ],
+        })
+
+        // Update conversation timestamp
+        await tx.conversation.update({
+          where: { id: conversationId },
+          data: { updatedAt: new Date() },
+        })
       })
     },
   })

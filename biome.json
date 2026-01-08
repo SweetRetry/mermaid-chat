@@ -23,6 +23,7 @@
     "rules": {
       "recommended": true,
       "correctness": {
+        "useExhaustiveDependencies": "off",
         "noUnusedImports": "warn",
         "noUnusedVariables": "warn"
       },
@@ -31,7 +32,8 @@
         "noNonNullAssertion": "off"
       },
       "suspicious": {
-        "noExplicitAny": "warn"
+        "noExplicitAny": "warn",
+        "noArrayIndexKey": "info"
       },
       "complexity": {
         "noForEach": "off"

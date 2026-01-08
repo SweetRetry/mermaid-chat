@@ -1,4 +1,3 @@
-import type { Message } from "@/generated/prisma"
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 
@@ -6,29 +5,31 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
+interface MessagePart {
+  type: string
+  output?: { code?: string }
+}
+
 export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
   const conversation = await prisma.conversation.findUnique({
     where: { id },
+    include: {
+      messages: {
+        orderBy: { createdAt: "asc" },
+      },
+    },
   })
 
   if (!conversation) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
-  const conversationMessages = await prisma.message.findMany({
-    where: { conversationId: id },
-    orderBy: { createdAt: "asc" },
-  })
-
-  const latestChartVersion = await prisma.chartVersion.findFirst({
-    where: { conversationId: id },
-    orderBy: { version: "desc" },
-  })
+  const { messages, ...rest } = conversation
 
   // Parse message content from JSON to restore full message parts
-  const parsedMessages = conversationMessages.map((msg: Message) => {
+  const parsedMessages = messages.map((msg) => {
     let parts: unknown[]
     try {
       parts = JSON.parse(msg.content)
@@ -46,10 +47,23 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
   })
 
+  // Extract latest chart from messages
+  let latestMermaidCode: string | null = null
+  for (let i = parsedMessages.length - 1; i >= 0; i--) {
+    const msg = parsedMessages[i]
+    if (msg.role !== "assistant") continue
+    const parts = msg.parts as MessagePart[]
+    const chartPart = parts.find((p) => p.type === "tool-update_chart")
+    if (chartPart?.output?.code) {
+      latestMermaidCode = chartPart.output.code
+      break
+    }
+  }
+
   return NextResponse.json({
-    ...conversation,
+    ...rest,
     messages: parsedMessages,
-    latestChart: latestChartVersion ?? null,
+    latestChart: latestMermaidCode ? { mermaidCode: latestMermaidCode } : null,
   })
 }
 

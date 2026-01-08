@@ -1,5 +1,4 @@
 "use client"
-import { MODELS } from "@/lib/constants/models"
 import { useChatStore } from "@/lib/store/chat-store"
 import { convertToUIMessages, getMessageContent } from "@/lib/utils/message"
 import type { StoredMessage } from "@/types/chat"
@@ -10,45 +9,41 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@workspace/ui/ai-elements/conversation"
-import {
-  PromptInput,
-  PromptInputBody,
-  PromptInputFooter,
-  PromptInputSubmit,
-  PromptInputTextarea,
-} from "@workspace/ui/ai-elements/prompt-input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
+import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport } from "ai"
 import { MessageSquare } from "lucide-react"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { useShallow } from "zustand/react/shallow"
 import { ChatEmptyState } from "./chat-empty-state"
+import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
 
 interface ChatPanelProps {
   className?: string
+  conversationId?: string
 }
 
-export function ChatPanel({ className }: ChatPanelProps) {
-  const input = useChatStore((state) => state.inputText)
-  const setInput = useChatStore((state) => state.setInputText)
-  const currentChart = useChatStore((state) => state.mermaidCode)
-  const onChartUpdate = useChatStore((state) => state.setMermaidCode)
-  const model = useChatStore((state) => state.model)
-  const onModelChange = useChatStore((state) => state.setModel)
-  const conversationId = useChatStore((state) => state.conversationId)
-  const conversationDetail = useChatStore((state) => state.conversationDetail)
-  const onConversationUpdate = useChatStore((state) => state.handleConversationUpdate)
-  const initialPrompt = useChatStore((state) => state.initialPrompt)
-  const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
+export function ChatPanel({ className, conversationId }: ChatPanelProps) {
+  const [model, setModel] = useState("deepseek-chat")
 
-  const handleSelectExample = useChatStore((state) => state.handleSelectExample)
+  // Batch select state values with shallow comparison to reduce re-renders
+  const { input, currentChart, conversationDetail, isLoadingConversation, initialPrompt } =
+    useChatStore(
+      useShallow((state) => ({
+        input: state.inputText,
+        currentChart: state.mermaidCode,
+        conversationDetail: state.conversationDetail,
+        isLoadingConversation: state.isLoadingConversation,
+        initialPrompt: state.initialPrompt,
+      }))
+    )
+
+  // Select actions separately (they don't change, so no shallow needed)
+  const setInput = useChatStore((state) => state.setInputText)
+  const onChartUpdate = useChatStore((state) => state.setMermaidCode)
+  const onConversationUpdate = useChatStore((state) => state.fetchConversations)
+  const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -102,6 +97,10 @@ export function ChatPanel({ className }: ChatPanelProps) {
     }
   }, [initialPrompt, conversationId, sendMessage, onPromptSent, status])
 
+  // Use ref to track current chart without causing re-renders
+  const currentChartRef = useRef(currentChart)
+  currentChartRef.current = currentChart
+
   useEffect(() => {
     if (messages.length === 0) return
 
@@ -118,13 +117,13 @@ export function ChatPanel({ className }: ChatPanelProps) {
         const code =
           updatePart.state === "output-available" ? updatePart.output?.code : updatePart.input?.code
 
-        if (code && code !== currentChart) {
+        if (code && code !== currentChartRef.current) {
           onChartUpdate(code)
         }
         break
       }
     }
-  }, [messages, currentChart, onChartUpdate])
+  }, [messages, onChartUpdate])
 
   if (!conversationId) {
     return (
@@ -140,55 +139,57 @@ export function ChatPanel({ className }: ChatPanelProps) {
     )
   }
 
+  if (isLoadingConversation) {
+    return (
+      <div className={cn("flex flex-col h-full", className)}>
+        <div className="flex-1 p-4 space-y-6">
+          {/* User message skeleton */}
+          <div className="flex justify-end">
+            <Skeleton className="h-16 w-3/4 rounded-2xl" />
+          </div>
+          {/* Assistant message skeleton */}
+          <div className="flex justify-start">
+            <div className="space-y-3 w-full max-w-[85%]">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-4/6" />
+              <Skeleton className="h-32 w-full rounded-xl mt-4" />
+            </div>
+          </div>
+        </div>
+        {/* Input skeleton */}
+        <div className="p-4">
+          <Skeleton className="h-24 w-full rounded-xl" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
       <Conversation className="flex-1">
         <ConversationContent className="p-4 space-y-6">
           {messages.length === 0 ? (
-            <ChatEmptyState onSelectExample={handleSelectExample} />
+            <ChatEmptyState />
           ) : (
             messages.map((message) => <ChatMessage key={message.id} message={message} />)
           )}
         </ConversationContent>
         <ConversationScrollButton className="bottom-24" />
       </Conversation>
-
-      <div className="p-4 bg-transparent mt-auto">
-        <PromptInput
-          onSubmit={({ text }) => {
-            if (!text.trim() || !conversationId) return
+      <div className="p-4">
+        <ChatInput
+          input={input}
+          onInputChange={setInput}
+          onSubmit={(text) => {
+            if (!conversationId) return
             sendMessage({ text })
             setInput("")
           }}
-        >
-          <PromptInputBody>
-            <PromptInputTextarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Describe the diagram you want to create..."
-              className="min-h-[100px] resize-none border-none focus-visible:ring-0 px-4 py-3"
-            />
-          </PromptInputBody>
-          <PromptInputFooter className="px-3 py-2 bg-muted/20 border-t flex items-center justify-between">
-            <Select value={model} onValueChange={onModelChange}>
-              <SelectTrigger className="h-8 w-[110px] bg-background/50 border-none shadow-none hover:bg-muted/50 transition-colors text-[10px] font-bold uppercase tracking-wider">
-                <SelectValue placeholder="Model" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl shadow-xl">
-                {MODELS.map((m) => (
-                  <SelectItem key={m.id} value={m.id} className="rounded-lg text-xs">
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <PromptInputSubmit
-              status={status}
-              disabled={status === "streaming" || !input.trim() || !conversationId}
-              className="rounded-xl h-8 px-4 shadow-sm"
-            />
-          </PromptInputFooter>
-        </PromptInput>
+          disabled={!input.trim() || !conversationId}
+          model={model}
+          onModelChange={setModel}
+        />
       </div>
     </div>
   )

@@ -51,7 +51,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   let latestMermaidCode: string | null = null
   for (let i = parsedMessages.length - 1; i >= 0; i--) {
     const msg = parsedMessages[i]
-    if (msg.role !== "assistant") continue
+    if (msg?.role !== "assistant") continue
     const parts = msg.parts as MessagePart[]
     const chartPart = parts.find((p) => p.type === "tool-update_chart")
     if (chartPart?.output?.code) {

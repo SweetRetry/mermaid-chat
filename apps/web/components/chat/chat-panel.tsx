@@ -16,13 +16,7 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/ai-elements/prompt-input"
-import {
-  Tool,
-  ToolContent,
-  ToolHeader,
-  ToolInput,
-  ToolOutput,
-} from "@workspace/ui/ai-elements/tool"
+import { Tool, ToolContent, ToolHeader } from "@workspace/ui/ai-elements/tool"
 import {
   Select,
   SelectContent,
@@ -71,7 +65,6 @@ const MODELS = [
 ] as const
 
 function normalizeMessageParts(message: StoredMessage): UIMessage["parts"] {
-  // Directly use parts if available, otherwise fallback to text from content
   if (Array.isArray(message.parts) && message.parts.length > 0) {
     return message.parts
   }
@@ -147,14 +140,12 @@ export function ChatPanel({ className }: ChatPanelProps) {
     },
   })
 
-  // Synchronize messages if they change (after initial hydration)
   useEffect(() => {
     if (initialUIMessages.length > 0 && messages.length === 0) {
       setMessages(initialUIMessages)
     }
   }, [initialUIMessages, setMessages, messages.length])
 
-  // Auto-send initial prompt if present
   useEffect(() => {
     if (initialPrompt && conversationId && status === "ready") {
       sendMessage({ text: initialPrompt })
@@ -162,11 +153,9 @@ export function ChatPanel({ className }: ChatPanelProps) {
     }
   }, [initialPrompt, conversationId, sendMessage, onPromptSent, status])
 
-  // Sync the chart whenever messages update with a new tool call result
   useEffect(() => {
     if (messages.length === 0) return
 
-    // Find the latest assistant tool call that updated the chart
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i]
       if (!msg || msg.role !== "assistant") continue
@@ -177,7 +166,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
         | undefined
 
       if (updatePart) {
-        // Output prioritized (final), fallback to streaming input
         const code =
           updatePart.state === "output-available" ? updatePart.output?.code : updatePart.input?.code
 
@@ -200,7 +188,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
       .join("")
   }
 
-  // Show recent conversations when no conversation is selected
   if (!conversationId) {
     return (
       <div className={cn("flex flex-col h-full", className)}>
@@ -321,18 +308,34 @@ export function ChatPanel({ className }: ChatPanelProps) {
                             state={updateChartTool.state}
                             title="Update Diagram"
                           />
-                          <ToolContent>
-                            <ToolInput input={updateChartTool.input} />
-                            {updateChartTool.state === "output-available" && (
-                              <ToolOutput
-                                output={
-                                  <MessageResponse className="prose prose-sm dark:prose-invert">
-                                    {updateChartTool.output.description}
-                                  </MessageResponse>
-                                }
-                                errorText={updateChartTool.errorText}
-                              />
+                          <ToolContent className="space-y-4 px-4 py-4">
+                            {/* Simplified rendering to show only the descriptive changes */}
+                            {(updateChartTool.input?.description ||
+                              (updateChartTool.state === "output-available" &&
+                                updateChartTool.output?.description)) && (
+                              <div className="space-y-1.5">
+                                <h4 className="font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
+                                  Changes
+                                </h4>
+                                <MessageResponse className="prose prose-sm dark:prose-invert text-xs leading-relaxed">
+                                  {updateChartTool.state === "output-available"
+                                    ? updateChartTool.output?.description
+                                    : updateChartTool.input?.description}
+                                </MessageResponse>
+                              </div>
                             )}
+
+                            {updateChartTool.state === "output-error" &&
+                              updateChartTool.errorText && (
+                                <div className="space-y-1.5">
+                                  <h4 className="font-medium text-destructive text-[10px] uppercase tracking-wider">
+                                    Error
+                                  </h4>
+                                  <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
+                                    {updateChartTool.errorText}
+                                  </div>
+                                </div>
+                              )}
                           </ToolContent>
                         </Tool>
                       )

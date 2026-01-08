@@ -28,7 +28,7 @@ export const Tool = ({ className, ...props }: ToolProps) => (
 
 export type ToolHeaderProps = {
   title?: string
-  type: ToolUIPart["type"]
+  type: ToolUIPart["type"] | "dynamic-tool"
   state: ToolUIPart["state"]
   className?: string
 }

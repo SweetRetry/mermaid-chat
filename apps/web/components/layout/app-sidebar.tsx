@@ -5,7 +5,14 @@ import { useConversations } from "@/hooks/use-conversations"
 import { useChatStore } from "@/lib/store/chat-store"
 import { Button } from "@workspace/ui/components/button"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import {
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -18,9 +25,10 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
-import { MessageSquare, Plus, Trash2 } from "lucide-react"
+import { ChevronUp, MessageSquare, Monitor, Moon, Plus, Sun, Trash2 } from "lucide-react"
+import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useState } from "react"
 
 interface AppSidebarProps {
   className?: string
@@ -144,6 +152,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="p-4">
+        <ThemeSwitcher isCollapsed={isCollapsed} />
+      </SidebarFooter>
     </>
   )
 }
@@ -247,5 +259,79 @@ function ConversationItem({
         </Button>
       )}
     </SidebarMenuItem>
+  )
+}
+
+function ThemeSwitcher({ isCollapsed }: { isCollapsed: boolean }) {
+  const { theme, setTheme } = useTheme()
+  const [isOpen, setIsOpen] = useState(false)
+
+  const modes = [
+    { name: "light", icon: Sun, label: "Light" },
+    { name: "dark", icon: Moon, label: "Dark" },
+    { name: "system", icon: Monitor, label: "System" },
+  ] as const
+
+  const currentMode = modes.find((m) => m.name === theme) || modes[2]
+  const Icon = currentMode.icon
+
+  return (
+    <DropdownMenu onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger asChild>
+        <SidebarMenuButton
+          size="lg"
+          isActive={isOpen}
+          className={cn(
+            "w-full h-12 rounded-xl transition-all duration-300 hover:bg-accent/50",
+            isOpen && "bg-accent"
+          )}
+        >
+          <div className="flex items-center gap-3 w-full">
+            <div className="size-8 rounded-lg bg-background border flex items-center justify-center text-primary shadow-sm shrink-0">
+              <Icon className="size-4" />
+            </div>
+            {!isCollapsed && (
+              <>
+                <div className="flex flex-col items-start flex-1 min-w-0 text-left">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/60 leading-none mb-1">
+                    Theme
+                  </span>
+                  <span className="text-sm font-semibold text-foreground leading-none truncate w-full">
+                    {currentMode.label}
+                  </span>
+                </div>
+                <ChevronUp
+                  className={cn(
+                    "size-4 text-muted-foreground/50 shrink-0 transition-transform duration-200",
+                    isOpen && "rotate-180"
+                  )}
+                />
+              </>
+            )}
+          </div>
+        </SidebarMenuButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side={isCollapsed ? "right" : "bottom"}
+        align={isCollapsed ? "end" : "center"}
+        className="w-48 p-1.5 rounded-xl border-border bg-popover/90 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200 shadow-2xl"
+      >
+        {modes.map((mode) => (
+          <DropdownMenuItem
+            key={mode.name}
+            onClick={() => setTheme(mode.name)}
+            className={cn(
+              "flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors",
+              theme === mode.name
+                ? "bg-primary/5 text-primary font-medium"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            )}
+          >
+            <mode.icon className="size-4" />
+            <span className="text-sm">{mode.label}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

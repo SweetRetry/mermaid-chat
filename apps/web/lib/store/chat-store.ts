@@ -23,12 +23,14 @@ interface ChatStore {
   conversationDetail: ConversationDetail | null
   isLoadingConversations: boolean
   isLoadingConversation: boolean
+  isMermaidUpdating: boolean
   inputText: string
   fetchConversations: () => Promise<void>
   loadConversation: (id: string) => Promise<void>
   createConversation: () => Promise<string | null>
   deleteConversation: (id: string) => Promise<void>
   setMermaidCode: (code: string) => void
+  setIsMermaidUpdating: (updating: boolean) => void
   clearConversation: () => void
   setInputText: (text: string) => void
   appendInputText: (text: string) => void
@@ -43,6 +45,7 @@ export const useChatStore = create<ChatStore>((set) => {
     conversationDetail: null,
     isLoadingConversations: true,
     isLoadingConversation: false,
+    isMermaidUpdating: false,
     inputText: "",
     fetchConversations: async () => {
       set({ isLoadingConversations: true })
@@ -104,6 +107,9 @@ export const useChatStore = create<ChatStore>((set) => {
     },
     setMermaidCode: (code: string) => {
       set({ mermaidCode: code })
+    },
+    setIsMermaidUpdating: (updating: boolean) => {
+      set({ isMermaidUpdating: updating })
     },
     clearConversation: () => {
       set({

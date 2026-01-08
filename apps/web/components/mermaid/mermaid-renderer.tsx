@@ -23,6 +23,7 @@ interface MermaidRendererProps {
   onSvgChange?: (svg: string) => void
   onNodeSelect?: (label: string) => void
   minimal?: boolean
+  isUpdating?: boolean
 }
 
 mermaid.initialize({
@@ -38,10 +39,13 @@ export function MermaidRenderer({
   onSvgChange,
   onNodeSelect,
   minimal = false,
+  isUpdating = false,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [svg, setSvg] = useState<string>("")
+  const [lastValidSvg, setLastValidSvg] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
+  const [isParsing, setIsParsing] = useState(false)
 
   const { transform, zoomIn, zoomOut, reset, setTransform } = useDiagramTransform(containerRef)
   const { handleNodeSelect } = useNodeSelection({ containerRef, svg, onNodeSelect })
@@ -74,6 +78,7 @@ export function MermaidRenderer({
     }
 
     const renderDiagram = async () => {
+      setIsParsing(true)
       try {
         const id = `mermaid-${Date.now()}`
         const { svg: renderedSvg } = await mermaid.render(id, code)
@@ -88,13 +93,19 @@ export function MermaidRenderer({
         })
         const serialized = new XMLSerializer().serializeToString(doc)
         setSvg(serialized)
+        setLastValidSvg(serialized)
         setError(null)
         setTransform({ x: 0, y: 0, scale: 1 })
         onSvgChange?.(serialized)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to render diagram")
-        setSvg("")
+        // When streaming or parsing fails, we keep the previous valid SVG
+        // but can optionally show an error if we're not currently updating
+        if (!isUpdating) {
+          setError(err instanceof Error ? err.message : "Failed to render diagram")
+        }
         onSvgChange?.("")
+      } finally {
+        setIsParsing(false)
       }
     }
 
@@ -131,16 +142,29 @@ export function MermaidRenderer({
     >
       <div
         className={cn(
-          "mermaid-container w-full h-full flex items-center justify-center",
-          minimal ? "p-4" : "p-8"
+          "mermaid-container w-full h-full flex items-center justify-center transition-all duration-300",
+          minimal ? "p-4" : "p-8",
+          (isUpdating || isParsing) && "opacity-50 grayscale-[0.5] scale-[0.98]"
         )}
         style={{
           transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           transformOrigin: "center center",
         }}
         // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
-        dangerouslySetInnerHTML={{ __html: svg }}
+        dangerouslySetInnerHTML={{ __html: svg || lastValidSvg }}
       />
+
+      {/* Loading Mask/Overlay */}
+      {(isUpdating || isParsing) && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/5 backdrop-blur-[1px] pointer-events-none animate-in fade-in duration-300">
+          <div className="flex items-center gap-3 px-4 py-2 bg-background/80 backdrop-blur-md rounded-full border shadow-sm scale-90">
+            <div className="size-3 rounded-full bg-primary animate-pulse" />
+            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">
+              {isUpdating ? "AI is generating..." : "Rendering..."}
+            </span>
+          </div>
+        </div>
+      )}
 
       {!minimal && (
         <>
@@ -151,7 +175,12 @@ export function MermaidRenderer({
             <div className="flex flex-col gap-1">
               <Dialog>
                 <DialogTrigger asChild>
-                  <Button variant="ghost" size="icon" className="size-8 rounded-lg" title="View Code">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 rounded-lg"
+                    title="View Code"
+                  >
                     <Code className="size-4" />
                   </Button>
                 </DialogTrigger>

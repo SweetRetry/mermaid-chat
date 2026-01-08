@@ -41,6 +41,7 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
   // Select actions separately (they don't change, so no shallow needed)
   const setInput = useChatStore((state) => state.setInputText)
   const onChartUpdate = useChatStore((state) => state.setMermaidCode)
+  const setIsMermaidUpdating = useChatStore((state) => state.setIsMermaidUpdating)
   const onConversationUpdate = useChatStore((state) => state.fetchConversations)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
@@ -105,8 +106,12 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
   currentChartRef.current = currentChart
 
   useEffect(() => {
-    if (messages.length === 0) return
+    if (messages.length === 0) {
+      setIsMermaidUpdating(false)
+      return
+    }
 
+    let isUpdating = false
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i]
       if (!msg || msg.role !== "assistant") continue
@@ -117,8 +122,12 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
         | undefined
 
       if (updatePart) {
-        const code =
-          updatePart.state === "output-available" ? updatePart.output?.code : updatePart.input?.code
+        const isStreaming = updatePart.state !== "output-available"
+        const code = isStreaming ? updatePart.input?.code : updatePart.output?.code
+
+        if (isStreaming) {
+          isUpdating = true
+        }
 
         if (code && code !== currentChartRef.current) {
           onChartUpdate(code)
@@ -126,7 +135,8 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
         break
       }
     }
-  }, [messages, onChartUpdate])
+    setIsMermaidUpdating(isUpdating)
+  }, [messages, onChartUpdate, setIsMermaidUpdating])
 
   if (!conversationId) {
     return (

@@ -13,6 +13,7 @@ interface MermaidPanelProps {
 export function MermaidPanel({ className }: MermaidPanelProps) {
   const code = useChatStore((state) => state.mermaidCode)
   const appendInputText = useChatStore((state) => state.appendInputText)
+  const isUpdating = useChatStore((state) => state.isMermaidUpdating)
   const isLoadingConversation = useChatStore((state) => state.isLoadingConversation)
 
   if (isLoadingConversation) {
@@ -32,7 +33,12 @@ export function MermaidPanel({ className }: MermaidPanelProps) {
   return (
     <div className={cn("flex flex-col h-full", className)}>
       {code ? (
-        <MermaidRenderer code={code} className="h-full" onNodeSelect={appendInputText} />
+        <MermaidRenderer
+          code={code}
+          className="h-full"
+          onNodeSelect={appendInputText}
+          isUpdating={isUpdating}
+        />
       ) : (
         <MermaidEmptyState />
       )}

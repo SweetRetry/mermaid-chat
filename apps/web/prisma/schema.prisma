@@ -8,23 +8,9 @@ datasource db {
 }
 
 /// Conversation represents a chat session with the AI.
-///
-/// Design notes on title generation:
-/// - title: Created when conversation starts, initially set to first user message (truncated)
-/// - summary: Optional AI-generated summary, can be used for better title generation later
-///
-/// The original design had 5 serial queries in onFinish because:
-/// 1. count() to check if first message → needed to generate title from first message
-/// 2. update() title if first message
-/// 3-4. create() user + assistant messages separately
-/// 5. update() timestamp
-///
-/// Better approach: Generate title at conversation creation time using the initial prompt,
-/// and optionally update with AI-generated summary later.
 model Conversation {
   id        String   @id @default(uuid())
   title     String
-  summary   String?  @map("summary")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

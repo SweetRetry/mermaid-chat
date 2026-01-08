@@ -39,6 +39,7 @@ export const EXAMPLES: Example[] = [
 export function MermaidPanel({ className }: MermaidPanelProps) {
   const code = useChatStore((state) => state.mermaidCode)
   const handleSelectExample = useChatStore((state) => state.handleSelectExample)
+  const appendInputText = useChatStore((state) => state.appendInputText)
   const [showCode, setShowCode] = useState(false)
   const [copied, setCopied] = useState(false)
   const [svgContent, setSvgContent] = useState("")
@@ -192,7 +193,12 @@ export function MermaidPanel({ className }: MermaidPanelProps) {
             </pre>
           </div>
         ) : code ? (
-          <MermaidRenderer code={code} className="h-full" onSvgChange={setSvgContent} />
+          <MermaidRenderer
+            code={code}
+            className="h-full"
+            onSvgChange={setSvgContent}
+            onNodeSelect={appendInputText}
+          />
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center space-y-4">
             <div className="size-20 rounded-full bg-primary/5 flex items-center justify-center border-2 border-primary/10 border-dashed animate-in fade-in zoom-in duration-500">

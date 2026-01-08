@@ -3,11 +3,10 @@ import { deepseek } from "@ai-sdk/deepseek"
 import {
   type LanguageModel,
   type ModelMessage,
-  type Tool,
+  type ToolUIPart,
   type UIMessage,
   convertToModelMessages,
   createGateway,
-  safeValidateUIMessages,
   streamText,
   tool,
 } from "ai"
@@ -22,6 +21,8 @@ When the user asks you to create or modify a diagram:
 1. Use the update_chart tool to generate or update the Mermaid code
 2. Always provide valid Mermaid syntax
 3. Explain what you created or changed
+
+If the user is only asking questions, explanations, or analysis about the existing diagram, do not call the update_chart tool.
 
 Supported diagram types:
 - flowchart (TD, LR, TB, RL directions)
@@ -54,6 +55,19 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const stripUiMessageIds = (messages: UIMessage[]) => messages.map(({ id: _id, ...rest }) => rest)
 
+const parseStoredContent = (content: string): UIMessage["parts"] => {
+  try {
+    const parsed = JSON.parse(content)
+    if (Array.isArray(parsed)) {
+      return parsed as UIMessage["parts"]
+    }
+  } catch {
+    // Fall through to plain text.
+  }
+
+  return content.trim() ? [{ type: "text" as const, text: content }] : []
+}
+
 function generateTitle(content: string): string {
   const maxLength = 50
   const cleaned = content.trim().replace(/\s+/g, " ")
@@ -77,8 +91,6 @@ const TOOLS = {
   }),
 }
 
-const UI_TOOLS = TOOLS as Record<string, Tool<unknown, unknown>>
-
 export async function POST(req: Request) {
   let payload: unknown
   try {
@@ -91,47 +103,78 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { messages: payloadMessages, currentChart, model, conversationId } = payload
+  const { query, currentChart, model, conversationId } = payload
 
-  if (currentChart !== undefined && typeof currentChart !== "string") {
+  if (typeof currentChart !== "string" && currentChart !== undefined) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  if (model !== undefined && typeof model !== "string") {
+  const selectedModelId = (model as ModelId) ?? "deepseek-chat"
+
+  if (typeof query !== "string") {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  if (conversationId !== undefined && typeof conversationId !== "string") {
+  const lastUserText = query.trim()
+  if (!lastUserText) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const selectedModelId = model ?? "deepseek-chat"
+  let contextMessages: UIMessage[] = []
 
-  const validatedMessages = await safeValidateUIMessages({
-    messages: payloadMessages,
-    tools: UI_TOOLS,
-  })
-  if (!validatedMessages.success) {
-    return new Response("Invalid request payload", { status: 400 })
+  if (typeof conversationId === "string") {
+    const storedMessages = await db
+      .select({
+        id: messages.id,
+        role: messages.role,
+        content: messages.content,
+        createdAt: messages.createdAt,
+      })
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(10)
+
+    const parsedStored = storedMessages
+      .slice()
+      .reverse()
+      .map((msg) => ({
+        id: msg.id,
+        role: msg.role as "user" | "assistant",
+        parts: parseStoredContent(msg.content),
+      }))
+      .filter((msg) => msg.parts.length > 0)
+
+    const combined = [
+      ...parsedStored,
+      {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: lastUserText }],
+      },
+    ]
+    contextMessages = combined.slice(-10)
+  } else {
+    contextMessages = [
+      {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        parts: [{ type: "text" as const, text: lastUserText }],
+      },
+    ]
   }
-
-  // Limit context window to last 6 conversation turns (12 messages)
-  const recentMessages = validatedMessages.data.slice(-12)
 
   const modelMessages: ModelMessage[] = await convertToModelMessages(
-    stripUiMessageIds(recentMessages),
+    stripUiMessageIds(contextMessages),
     { tools: TOOLS }
   )
 
-  const systemPrompt = currentChart
-    ? `${SYSTEM_PROMPT}\n\nCurrent diagram code:\n\`\`\`mermaid\n${currentChart}\n\`\`\``
-    : SYSTEM_PROMPT
+  const systemPrompt =
+    typeof currentChart === "string"
+      ? `${SYSTEM_PROMPT}\n\nCurrent diagram code:\n\`\`\`mermaid\n${currentChart}\n\`\`\``
+      : SYSTEM_PROMPT
 
-  const selectedModel = MODELS[selectedModelId as ModelId] ?? MODELS["deepseek-chat"]
-
-  const lastUserMessage = [...validatedMessages.data]
-    .reverse()
-    .find((m: UIMessage) => m.role === "user")
+  const selectedModel = MODELS[selectedModelId] ?? MODELS["deepseek-chat"]
 
   const result = streamText({
     model: selectedModel,
@@ -139,7 +182,7 @@ export async function POST(req: Request) {
     messages: modelMessages,
     tools: TOOLS,
     async onFinish({ text, toolCalls, toolResults }) {
-      if (!conversationId || !lastUserMessage) return
+      if (typeof conversationId !== "string" || !lastUserText) return
 
       const now = new Date()
 
@@ -148,52 +191,39 @@ export async function POST(req: Request) {
         .from(messages)
         .where(eq(messages.conversationId, conversationId))
 
-      const extractTextFromParts = (parts: UIMessage["parts"]): string => {
-        return parts
-          .filter(
-            (p): p is { type: "text"; text: string } =>
-              typeof p === "object" && p !== null && p.type === "text" && "text" in p
-          )
-          .map((p) => p.text)
-          .join("")
-      }
-
-      const userTextContent = extractTextFromParts(lastUserMessage.parts)
-
-      if (existingMessages[0]?.count === 0 && userTextContent) {
+      if (existingMessages[0]?.count === 0) {
         await db
           .update(conversations)
-          .set({ title: generateTitle(userTextContent) })
+          .set({ title: generateTitle(lastUserText) })
           .where(eq(conversations.id, conversationId))
       }
 
-      // Save user message with full parts
+      // Save user message
       await db.insert(messages).values({
         id: crypto.randomUUID(),
         conversationId,
         role: "user",
-        content: JSON.stringify(lastUserMessage.parts),
+        content: JSON.stringify([{ type: "text", text: lastUserText }]),
         createdAt: now,
       })
 
-      // Build assistant message parts including tool calls
-      const assistantParts: unknown[] = []
+      // Build assistant message parts
+      const assistantParts: UIMessage["parts"] = []
       if (text) {
         assistantParts.push({ type: "text", text })
       }
       if (toolCalls && toolResults) {
         for (const tc of toolCalls) {
-          const result = toolResults.find((tr) => tr.toolCallId === tc.toolCallId)
+          const res = toolResults.find((tr) => tr.toolCallId === tc.toolCallId)
           assistantParts.push({
-            type: "tool-invocation",
-            toolInvocation: {
-              state: "result",
-              toolCallId: tc.toolCallId,
-              toolName: tc.toolName,
-              args: "input" in tc ? tc.input : undefined,
-              result: result && "output" in result ? result.output : undefined,
-            },
-          })
+            type: `tool-${tc.toolName}` as `tool-${string}`,
+            toolCallId: tc.toolCallId,
+            state: "output-available",
+            input: "input" in tc ? tc.input : undefined,
+            output: res && "output" in res ? res.output : undefined,
+            errorText:
+              res && "errorText" in res ? (res as { errorText?: string }).errorText : undefined,
+          } as ToolUIPart)
         }
       }
 

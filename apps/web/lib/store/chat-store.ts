@@ -25,6 +25,7 @@ interface ChatStore {
   conversationDetail: ConversationDetail | null
   loadingCount: number
   initialPrompt: string | null
+  inputText: string
   fetchConversations: () => Promise<void>
   loadConversation: (id: string) => Promise<void>
   createConversation: () => Promise<string | null>
@@ -34,6 +35,8 @@ interface ChatStore {
   clearInitialPrompt: () => void
   setMermaidCode: (code: string) => void
   setModel: (model: string) => void
+  setInputText: (text: string) => void
+  appendInputText: (text: string) => void
 }
 
 export const useChatStore = create<ChatStore>((set, get) => {
@@ -56,6 +59,7 @@ export const useChatStore = create<ChatStore>((set, get) => {
     conversationDetail: null,
     loadingCount: 0,
     initialPrompt: null,
+    inputText: "",
     fetchConversations: async () => {
       await withLoading(async () => {
         try {
@@ -149,6 +153,17 @@ export const useChatStore = create<ChatStore>((set, get) => {
     },
     setModel: (model: string) => {
       set({ model })
+    },
+    setInputText: (text: string) => {
+      set({ inputText: text })
+    },
+    appendInputText: (text: string) => {
+      const next = text.trim()
+      if (!next) return
+      set((state) => {
+        const separator = state.inputText && !state.inputText.endsWith(" ") ? " " : ""
+        return { inputText: `${state.inputText}${separator}${next}` }
+      })
     },
   }
 })

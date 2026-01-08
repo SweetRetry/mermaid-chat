@@ -17,6 +17,13 @@ import {
   PromptInputTextarea,
 } from "@workspace/ui/ai-elements/prompt-input"
 import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@workspace/ui/ai-elements/tool"
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,9 +31,27 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
-import { DefaultChatTransport, getToolName, isToolUIPart } from "ai"
-import { Check, MessageSquare, Plus } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { DefaultChatTransport, type ToolUIPart } from "ai"
+import { MessageSquare, Plus } from "lucide-react"
+import { useEffect, useMemo } from "react"
+
+export type UpdateChartToolInput = {
+  code: string
+  description: string
+}
+
+export type UpdateChartToolOutput = {
+  success: boolean
+  code: string
+  description: string
+}
+
+export type UpdateChartToolUIPart = ToolUIPart<{
+  update_chart: {
+    input: UpdateChartToolInput
+    output: UpdateChartToolOutput
+  }
+}>
 
 interface StoredMessage {
   id: string
@@ -46,6 +71,7 @@ const MODELS = [
 ] as const
 
 function normalizeMessageParts(message: StoredMessage): UIMessage["parts"] {
+  // Directly use parts if available, otherwise fallback to text from content
   if (Array.isArray(message.parts) && message.parts.length > 0) {
     return message.parts
   }
@@ -66,7 +92,8 @@ function convertToUIMessages(messages: StoredMessage[]): UIMessage[] {
 }
 
 export function ChatPanel({ className }: ChatPanelProps) {
-  const [input, setInput] = useState("")
+  const input = useChatStore((state) => state.inputText)
+  const setInput = useChatStore((state) => state.setInputText)
   const currentChart = useChatStore((state) => state.mermaidCode)
   const onChartUpdate = useChatStore((state) => state.setMermaidCode)
   const model = useChatStore((state) => state.model)
@@ -88,6 +115,17 @@ export function ChatPanel({ className }: ChatPanelProps) {
       new DefaultChatTransport({
         api: "/api/chat",
         body: { currentChart, model, conversationId },
+        prepareSendMessagesRequest: (options) => {
+          const lastMessage = options.messages[options.messages.length - 1]
+          const query = lastMessage ? getMessageContent(lastMessage) : ""
+          return {
+            ...options,
+            body: {
+              ...options.body,
+              query,
+            },
+          }
+        },
       }),
     [currentChart, model, conversationId]
   )
@@ -100,7 +138,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
     transport,
     onToolCall: ({ toolCall }) => {
       if (toolCall.toolName !== "update_chart" || toolCall.dynamic) return
-      const input = toolCall.input as { code?: string } | undefined
+      const input = toolCall.input as UpdateChartToolInput | undefined
       if (typeof input?.code !== "string") return
       onChartUpdate(input.code)
     },
@@ -109,18 +147,47 @@ export function ChatPanel({ className }: ChatPanelProps) {
     },
   })
 
-  // Synchronize messages if they change (e.g. after initial hydration)
+  // Synchronize messages if they change (after initial hydration)
   useEffect(() => {
     if (initialUIMessages.length > 0 && messages.length === 0) {
       setMessages(initialUIMessages)
     }
-  }, [initialUIMessages, setMessages, messages.length]) // Auto-send initial prompt if present
+  }, [initialUIMessages, setMessages, messages.length])
+
+  // Auto-send initial prompt if present
   useEffect(() => {
     if (initialPrompt && conversationId && status === "ready") {
       sendMessage({ text: initialPrompt })
       onPromptSent()
     }
   }, [initialPrompt, conversationId, sendMessage, onPromptSent, status])
+
+  // Sync the chart whenever messages update with a new tool call result
+  useEffect(() => {
+    if (messages.length === 0) return
+
+    // Find the latest assistant tool call that updated the chart
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (!msg || msg.role !== "assistant") continue
+
+      const parts = msg.parts || []
+      const updatePart = parts.find((p) => p.type === "tool-update_chart") as
+        | UpdateChartToolUIPart
+        | undefined
+
+      if (updatePart) {
+        // Output prioritized (final), fallback to streaming input
+        const code =
+          updatePart.state === "output-available" ? updatePart.output?.code : updatePart.input?.code
+
+        if (code && code !== currentChart) {
+          onChartUpdate(code)
+        }
+        break
+      }
+    }
+  }, [messages, currentChart, onChartUpdate])
 
   const getMessageContent = (message: UIMessage): string => {
     return message.parts
@@ -131,10 +198,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
         return ""
       })
       .join("")
-  }
-
-  const getToolInvocations = (message: UIMessage) => {
-    return message.parts.filter(isToolUIPart)
   }
 
   // Show recent conversations when no conversation is selected
@@ -222,7 +285,6 @@ export function ChatPanel({ className }: ChatPanelProps) {
           ) : (
             messages.map((message) => {
               const content = getMessageContent(message)
-              const tools = getToolInvocations(message)
 
               return (
                 <Message
@@ -245,25 +307,36 @@ export function ChatPanel({ className }: ChatPanelProps) {
                     ) : (
                       <div className="whitespace-pre-wrap font-medium">{content}</div>
                     )}
-                    {tools.map((tool) => {
-                      if (!isToolUIPart(tool)) return null
-                      const toolInvocation = tool
-                      if (getToolName(toolInvocation) !== "update_chart") return null
-                      if (toolInvocation.state !== "output-available") return null
-                      const output = toolInvocation.output as { description?: string } | undefined
-                      if (!output?.description) return null
+                    {(() => {
+                      const updateChartTool = (message.parts || []).find(
+                        (part) => part.type === "tool-update_chart"
+                      ) as UpdateChartToolUIPart | undefined
+
+                      if (!updateChartTool) return null
 
                       return (
-                        <div
-                          key={toolInvocation.toolCallId}
-                          className="mt-3 text-[11px] font-medium flex items-center gap-2 py-2 px-3 bg-background/50 rounded-lg border border-border/50"
-                        >
-                          <Check className="size-3 text-green-500" />
-                          <span className="opacity-70">Updated diagram:</span>
-                          <span className="font-semibold">{output.description}</span>
-                        </div>
+                        <Tool key={updateChartTool.toolCallId} className="mt-4" defaultOpen={true}>
+                          <ToolHeader
+                            type="tool-update_chart"
+                            state={updateChartTool.state}
+                            title="Update Diagram"
+                          />
+                          <ToolContent>
+                            <ToolInput input={updateChartTool.input} />
+                            {updateChartTool.state === "output-available" && (
+                              <ToolOutput
+                                output={
+                                  <MessageResponse className="prose prose-sm dark:prose-invert">
+                                    {updateChartTool.output.description}
+                                  </MessageResponse>
+                                }
+                                errorText={updateChartTool.errorText}
+                              />
+                            )}
+                          </ToolContent>
+                        </Tool>
                       )
-                    })}
+                    })()}
                   </MessageContent>
                 </Message>
               )

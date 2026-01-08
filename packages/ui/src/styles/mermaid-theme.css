@@ -1,0 +1,211 @@
+/* Mermaid Diagram Theming - Uses design system CSS variables */
+
+.mermaid-container svg {
+  font-family: inherit;
+}
+
+/* Node styles */
+.mermaid-container .node rect,
+.mermaid-container .node circle,
+.mermaid-container .node ellipse,
+.mermaid-container .node polygon,
+.mermaid-container .node path {
+  fill: var(--secondary);
+  stroke: var(--border);
+  stroke-width: 1.5px;
+}
+
+.mermaid-container .node .label {
+  color: var(--foreground);
+}
+
+.mermaid-container .nodeLabel,
+.mermaid-container .label text,
+.mermaid-container .node text {
+  fill: var(--foreground);
+}
+
+/* Edge/Arrow styles */
+.mermaid-container .edgePath .path,
+.mermaid-container .flowchart-link {
+  stroke: var(--muted-foreground);
+  stroke-width: 1.5px;
+}
+
+.mermaid-container .edgePath marker path,
+.mermaid-container .marker {
+  fill: var(--muted-foreground);
+  stroke: var(--muted-foreground);
+}
+
+.mermaid-container .edgeLabel {
+  background-color: var(--background);
+  color: var(--muted-foreground);
+}
+
+.mermaid-container .edgeLabel rect {
+  fill: var(--background);
+  opacity: 0.9;
+}
+
+.mermaid-container .edgeLabel text,
+.mermaid-container .edgeLabel span {
+  fill: var(--muted-foreground);
+  color: var(--muted-foreground);
+}
+
+/* Cluster/Subgraph styles */
+.mermaid-container .cluster rect {
+  fill: var(--muted);
+  stroke: var(--border);
+  stroke-width: 1px;
+}
+
+.mermaid-container .cluster text {
+  fill: var(--muted-foreground);
+}
+
+/* Special node types */
+.mermaid-container .node.default > rect,
+.mermaid-container .node.default > polygon {
+  fill: var(--secondary);
+}
+
+.mermaid-container .node.decision > polygon {
+  fill: var(--chart-4);
+}
+
+.mermaid-container .node.decision text {
+  fill: var(--foreground);
+}
+
+/* Sequence diagram */
+.mermaid-container .actor {
+  fill: var(--secondary);
+  stroke: var(--border);
+}
+
+.mermaid-container .actor text {
+  fill: var(--foreground);
+}
+
+.mermaid-container .sequenceNumber {
+  fill: var(--primary-foreground);
+}
+
+.mermaid-container rect.note {
+  fill: var(--chart-4);
+  stroke: var(--border);
+}
+
+.mermaid-container .noteText {
+  fill: var(--foreground);
+}
+
+.mermaid-container .messageLine0,
+.mermaid-container .messageLine1 {
+  stroke: var(--muted-foreground);
+}
+
+.mermaid-container .messageText {
+  fill: var(--foreground);
+}
+
+.mermaid-container .activation0,
+.mermaid-container .activation1,
+.mermaid-container .activation2 {
+  fill: var(--accent);
+  stroke: var(--border);
+}
+
+/* Class diagram */
+.mermaid-container .classGroup rect {
+  fill: var(--secondary);
+  stroke: var(--border);
+}
+
+.mermaid-container .classGroup text {
+  fill: var(--foreground);
+}
+
+.mermaid-container .classGroup line {
+  stroke: var(--border);
+}
+
+/* State diagram */
+.mermaid-container .stateGroup rect {
+  fill: var(--secondary);
+  stroke: var(--border);
+}
+
+.mermaid-container .stateGroup text {
+  fill: var(--foreground);
+}
+
+.mermaid-container .stateGroup .composit {
+  fill: var(--background);
+}
+
+/* Git graph */
+.mermaid-container .commit-id,
+.mermaid-container .commit-msg {
+  fill: var(--foreground);
+}
+
+/* ER diagram */
+.mermaid-container .entityBox {
+  fill: var(--secondary);
+  stroke: var(--border);
+}
+
+.mermaid-container .entityLabel {
+  fill: var(--foreground);
+}
+
+.mermaid-container .relationshipLabelBox {
+  fill: var(--background);
+}
+
+.mermaid-container .relationshipLabel {
+  fill: var(--muted-foreground);
+}
+
+/* Pie chart */
+.mermaid-container .pieCircle {
+  stroke: var(--background);
+}
+
+/* Journey diagram */
+.mermaid-container .journey-section-header {
+  fill: var(--muted-foreground);
+}
+
+/* Gantt chart */
+.mermaid-container .section {
+  fill: var(--muted);
+  stroke: var(--border);
+}
+
+.mermaid-container .task {
+  fill: var(--chart-1);
+  stroke: var(--border);
+}
+
+.mermaid-container .taskText {
+  fill: var(--foreground);
+}
+
+/* Interactive hover state */
+.mermaid-container .node:hover rect,
+.mermaid-container .node:hover circle,
+.mermaid-container .node:hover ellipse,
+.mermaid-container .node:hover polygon {
+  filter: brightness(0.95);
+}
+
+.dark .mermaid-container .node:hover rect,
+.dark .mermaid-container .node:hover circle,
+.dark .mermaid-container .node:hover ellipse,
+.dark .mermaid-container .node:hover polygon {
+  filter: brightness(1.15);
+}

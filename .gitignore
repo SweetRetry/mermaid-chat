@@ -27,6 +27,11 @@ out/
 build
 dist
 
+# Prisma
+**/generated/prisma/
+*.db
+*.db-journal
+
 
 # Debug
 npm-debug.log*
@@ -34,3 +39,7 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
+
+mermaid-chat.db
+mermaid-chat.db-shm
+mermaid-chat.db-wal

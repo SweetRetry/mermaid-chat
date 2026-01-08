@@ -7,13 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": [
-      "node_modules",
-      "dist",
-      ".next",
-      ".turbo",
-      "pnpm-lock.yaml"
-    ]
+    "ignore": ["node_modules", "dist", ".next", ".turbo", "pnpm-lock.yaml"]
   },
   "formatter": {
     "enabled": true,
@@ -33,6 +27,7 @@
         "noUnusedVariables": "warn"
       },
       "style": {
+        "useImportType": "off",
         "noNonNullAssertion": "off"
       },
       "suspicious": {

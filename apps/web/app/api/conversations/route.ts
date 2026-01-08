@@ -1,16 +1,17 @@
-import { conversations, db } from "@/lib/db"
-import { desc } from "drizzle-orm"
+import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 
 export async function GET() {
-  const result = await db
-    .select({
-      id: conversations.id,
-      title: conversations.title,
-      updatedAt: conversations.updatedAt,
-    })
-    .from(conversations)
-    .orderBy(desc(conversations.updatedAt))
+  const result = await prisma.conversation.findMany({
+    select: {
+      id: true,
+      title: true,
+      updatedAt: true,
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  })
 
   return NextResponse.json({ conversations: result })
 }
@@ -20,15 +21,9 @@ export async function POST(request: Request) {
   const title =
     typeof body.title === "string" && body.title.trim() ? body.title.trim() : "New Conversation"
 
-  const now = new Date()
-  const id = crypto.randomUUID()
-
-  await db.insert(conversations).values({
-    id,
-    title,
-    createdAt: now,
-    updatedAt: now,
+  const conversation = await prisma.conversation.create({
+    data: { title },
   })
 
-  return NextResponse.json({ id, title, createdAt: now, updatedAt: now }, { status: 201 })
+  return NextResponse.json(conversation, { status: 201 })
 }

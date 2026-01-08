@@ -1,9 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@workspace/ui"],
-  serverExternalPackages: ["better-sqlite3"],
   turbopack: {
     root: "../..",
+  },
+  env: {
+    SITE_PASSWORD: process.env.SITE_PASSWORD,
   },
 }
 

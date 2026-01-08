@@ -1,4 +1,5 @@
-import { chartVersions, conversations, db, messages } from "@/lib/db"
+import type { Message } from "@/generated/prisma"
+import { prisma } from "@/lib/db"
 import { deepseek } from "@ai-sdk/deepseek"
 import {
   type LanguageModel,
@@ -10,7 +11,6 @@ import {
   streamText,
   tool,
 } from "ai"
-import { desc, eq, sql } from "drizzle-orm"
 import { z } from "zod"
 
 export const maxDuration = 30
@@ -123,27 +123,27 @@ export async function POST(req: Request) {
   let contextMessages: UIMessage[] = []
 
   if (typeof conversationId === "string") {
-    const storedMessages = await db
-      .select({
-        id: messages.id,
-        role: messages.role,
-        content: messages.content,
-        createdAt: messages.createdAt,
-      })
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(desc(messages.createdAt))
-      .limit(10)
+    const storedMessages = await prisma.message.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        createdAt: true,
+      },
+    })
 
     const parsedStored = storedMessages
       .slice()
       .reverse()
-      .map((msg) => ({
+      .map((msg: Pick<Message, "id" | "role" | "content">) => ({
         id: msg.id,
         role: msg.role as "user" | "assistant",
         parts: parseStoredContent(msg.content),
       }))
-      .filter((msg) => msg.parts.length > 0)
+      .filter((msg: { parts: UIMessage["parts"] }) => msg.parts.length > 0)
 
     const combined = [
       ...parsedStored,
@@ -186,25 +186,24 @@ export async function POST(req: Request) {
 
       const now = new Date()
 
-      const existingMessages = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(messages)
-        .where(eq(messages.conversationId, conversationId))
+      const messageCount = await prisma.message.count({
+        where: { conversationId },
+      })
 
-      if (existingMessages[0]?.count === 0) {
-        await db
-          .update(conversations)
-          .set({ title: generateTitle(lastUserText) })
-          .where(eq(conversations.id, conversationId))
+      if (messageCount === 0) {
+        await prisma.conversation.update({
+          where: { id: conversationId },
+          data: { title: generateTitle(lastUserText) },
+        })
       }
 
       // Save user message
-      await db.insert(messages).values({
-        id: crypto.randomUUID(),
-        conversationId,
-        role: "user",
-        content: JSON.stringify([{ type: "text", text: lastUserText }]),
-        createdAt: now,
+      await prisma.message.create({
+        data: {
+          conversationId,
+          role: "user",
+          content: JSON.stringify([{ type: "text", text: lastUserText }]),
+        },
       })
 
       // Build assistant message parts
@@ -227,41 +226,39 @@ export async function POST(req: Request) {
         }
       }
 
-      const assistantMessageId = crypto.randomUUID()
-      await db.insert(messages).values({
-        id: assistantMessageId,
-        conversationId,
-        role: "assistant",
-        content: JSON.stringify(assistantParts),
-        createdAt: now,
+      const assistantMessage = await prisma.message.create({
+        data: {
+          conversationId,
+          role: "assistant",
+          content: JSON.stringify(assistantParts),
+        },
       })
 
       const chartToolCall = toolCalls?.find((tc) => tc.toolName === "update_chart")
       if (chartToolCall && "input" in chartToolCall) {
         const input = chartToolCall.input as { code?: string }
         if (input?.code) {
-          const latestVersion = await db
-            .select({ version: chartVersions.version })
-            .from(chartVersions)
-            .where(eq(chartVersions.conversationId, conversationId))
-            .orderBy(desc(chartVersions.version))
-            .limit(1)
+          const latestVersion = await prisma.chartVersion.findFirst({
+            where: { conversationId },
+            orderBy: { version: "desc" },
+            select: { version: true },
+          })
 
-          await db.insert(chartVersions).values({
-            id: crypto.randomUUID(),
-            conversationId,
-            messageId: assistantMessageId,
-            mermaidCode: input.code,
-            version: (latestVersion[0]?.version ?? 0) + 1,
-            createdAt: now,
+          await prisma.chartVersion.create({
+            data: {
+              conversationId,
+              messageId: assistantMessage.id,
+              mermaidCode: input.code,
+              version: (latestVersion?.version ?? 0) + 1,
+            },
           })
         }
       }
 
-      await db
-        .update(conversations)
-        .set({ updatedAt: now })
-        .where(eq(conversations.id, conversationId))
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: now },
+      })
     },
   })
 

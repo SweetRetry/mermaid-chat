@@ -1,21 +1,24 @@
-import Database from "better-sqlite3"
-import { drizzle } from "drizzle-orm/better-sqlite3"
-import * as schema from "./schema"
+import { PrismaClient } from "@/generated/prisma"
+import { PrismaNeon } from "@prisma/adapter-neon"
 
-const globalForDb = globalThis as unknown as {
-  db: ReturnType<typeof drizzle<typeof schema>> | undefined
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined
 }
 
-function createDb() {
-  const sqlite = new Database("mermaid-chat.db")
-  sqlite.pragma("journal_mode = WAL")
-  return drizzle(sqlite, { schema })
+function createPrismaClient() {
+  const connectionString = process.env.DATABASE_URL
+
+  if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
+
+  const adapter = new PrismaNeon({ connectionString })
+
+  return new PrismaClient({ adapter })
 }
 
-export const db = globalForDb.db ?? createDb()
+export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== "production") {
-  globalForDb.db = db
+  globalForPrisma.prisma = prisma
 }
-
-export * from "./schema"

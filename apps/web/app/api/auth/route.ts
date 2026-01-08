@@ -1,7 +1,5 @@
+import { AUTH_COOKIE_NAME, COOKIE_MAX_AGE, generateAuthToken } from "@/lib/auth"
 import { NextResponse } from "next/server"
-
-const AUTH_COOKIE_NAME = "site-auth"
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30 // 30 天
 
 export async function POST(request: Request) {
   const password = process.env.SITE_PASSWORD
@@ -18,8 +16,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "密码错误" }, { status: 401 })
     }
 
+    const token = await generateAuthToken(password)
     const response = NextResponse.json({ success: true })
-    response.cookies.set(AUTH_COOKIE_NAME, password, {
+    response.cookies.set(AUTH_COOKIE_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

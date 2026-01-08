@@ -1,9 +1,8 @@
-import { NextResponse } from "next/server"
+import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth"
 import type { NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 
-const AUTH_COOKIE_NAME = "site-auth"
-
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const password = process.env.SITE_PASSWORD
 
   // 如果没有设置密码，跳过验证
@@ -11,13 +10,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  const isAuthed = request.cookies.get(AUTH_COOKIE_NAME)?.value === password
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value
+  const isAuthed = token ? await verifyAuthToken(token, password) : false
 
   // 登录页面和登录 API 放行
-  if (
-    request.nextUrl.pathname === "/login" ||
-    request.nextUrl.pathname === "/api/auth"
-  ) {
+  if (request.nextUrl.pathname === "/login" || request.nextUrl.pathname === "/api/auth") {
     // 已登录用户访问登录页，重定向到首页
     if (isAuthed && request.nextUrl.pathname === "/login") {
       return NextResponse.redirect(new URL("/", request.url))

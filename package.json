@@ -23,7 +23,6 @@
     "node": ">=20"
   },
   "pnpm": {
-    "ignoredBuiltDependencies": ["better-sqlite3", "esbuild", "prisma"],
-    "onlyBuiltDependencies": ["better-sqlite3"]
+    "ignoredBuiltDependencies": ["esbuild", "prisma"]
   }
 }

@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  title     String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages      Message[]
+  chartVersions ChartVersion[]
+
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  role           String
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  chartVersions ChartVersion[]
+
+  @@index([conversationId])
+  @@map("messages")
+}
+
+model ChartVersion {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  messageId      String?  @map("message_id")
+  mermaidCode    String   @map("mermaid_code")
+  version        Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      Message?     @relation(fields: [messageId], references: [id])
+
+  @@index([conversationId])
+  @@map("chart_versions")
+}

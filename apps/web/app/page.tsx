@@ -1,6 +1,6 @@
+import { AppShell } from "@/components/layout/app-shell"
 import { cookies } from "next/headers"
 import type { Layout } from "react-resizable-panels"
-import { AppShell } from "@/components/layout/app-shell"
 
 const GROUP_ID = "mermaid-chat-panels"
 const FALLBACK_LAYOUT: Layout = { preview: 75, chat: 25 }

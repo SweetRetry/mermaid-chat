@@ -1,7 +1,7 @@
 "use client"
 
-import type { UIMessage } from "@ai-sdk/react"
 import type { Conversation } from "@/components/conversation/conversation-selector"
+import type { UIMessage } from "@ai-sdk/react"
 import { create } from "zustand"
 
 interface ConversationDetail {

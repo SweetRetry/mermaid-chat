@@ -1,14 +1,17 @@
 "use client"
 
 import { ConversationSelector } from "@/components/conversation/conversation-selector"
+import { MODELS } from "@/lib/constants/models"
 import { useChatStore } from "@/lib/store/chat-store"
-import { type UIMessage, useChat } from "@ai-sdk/react"
+import { convertToUIMessages, getMessageContent } from "@/lib/utils/message"
+import type { StoredMessage } from "@/types/chat"
+import type { UpdateChartToolInput, UpdateChartToolUIPart } from "@/types/tool"
+import { useChat } from "@ai-sdk/react"
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@workspace/ui/ai-elements/conversation"
-import { Message, MessageContent, MessageResponse } from "@workspace/ui/ai-elements/message"
 import {
   PromptInput,
   PromptInputBody,
@@ -16,7 +19,6 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@workspace/ui/ai-elements/prompt-input"
-import { Tool, ToolContent, ToolHeader } from "@workspace/ui/ai-elements/tool"
 import {
   Select,
   SelectContent,
@@ -25,63 +27,14 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
-import { DefaultChatTransport, type ToolUIPart } from "ai"
-import { MessageSquare, Plus } from "lucide-react"
+import { DefaultChatTransport } from "ai"
 import { useEffect, useMemo } from "react"
-
-export type UpdateChartToolInput = {
-  code: string
-  description: string
-}
-
-export type UpdateChartToolOutput = {
-  success: boolean
-  code: string
-  description: string
-}
-
-export type UpdateChartToolUIPart = ToolUIPart<{
-  update_chart: {
-    input: UpdateChartToolInput
-    output: UpdateChartToolOutput
-  }
-}>
-
-interface StoredMessage {
-  id: string
-  role: "user" | "assistant"
-  content?: string
-  parts?: UIMessage["parts"]
-  createdAt: string
-}
+import { ChatEmptyState } from "./chat-empty-state"
+import { ChatMessage } from "./chat-message"
+import { ConversationListView } from "./conversation-list-view"
 
 interface ChatPanelProps {
   className?: string
-}
-
-const MODELS = [
-  { id: "deepseek-chat", name: "DeepSeek" },
-  { id: "claude-sonnet", name: "Claude Sonnet" },
-] as const
-
-function normalizeMessageParts(message: StoredMessage): UIMessage["parts"] {
-  if (Array.isArray(message.parts) && message.parts.length > 0) {
-    return message.parts
-  }
-
-  if (typeof message.content === "string" && message.content.trim()) {
-    return [{ type: "text" as const, text: message.content }]
-  }
-
-  return []
-}
-
-function convertToUIMessages(messages: StoredMessage[]): UIMessage[] {
-  return messages.map((message) => ({
-    id: message.id,
-    role: message.role,
-    parts: normalizeMessageParts(message),
-  }))
 }
 
 export function ChatPanel({ className }: ChatPanelProps) {
@@ -101,6 +54,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
   const initialPrompt = useChatStore((state) => state.initialPrompt)
   const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
   const loading = useChatStore((state) => state.loadingCount > 0)
+
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
   const transport = useMemo(
@@ -131,9 +85,9 @@ export function ChatPanel({ className }: ChatPanelProps) {
     transport,
     onToolCall: ({ toolCall }) => {
       if (toolCall.toolName !== "update_chart" || toolCall.dynamic) return
-      const input = toolCall.input as UpdateChartToolInput | undefined
-      if (typeof input?.code !== "string") return
-      onChartUpdate(input.code)
+      const toolInput = toolCall.input as UpdateChartToolInput | undefined
+      if (typeof toolInput?.code !== "string") return
+      onChartUpdate(toolInput.code)
     },
     onFinish: () => {
       onConversationUpdate()
@@ -177,66 +131,14 @@ export function ChatPanel({ className }: ChatPanelProps) {
     }
   }, [messages, currentChart, onChartUpdate])
 
-  const getMessageContent = (message: UIMessage): string => {
-    return message.parts
-      .map((part) => {
-        if (part.type === "text" && "text" in part) {
-          return (part as { text: string }).text
-        }
-        return ""
-      })
-      .join("")
-  }
-
   if (!conversationId) {
     return (
-      <div className={cn("flex flex-col h-full", className)}>
-        <div className="flex items-center justify-between px-4 h-12 border-b bg-muted/20 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="size-4 text-primary" />
-            <span className="text-sm font-semibold tracking-tight">Recent Chats</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => onCreateConversation()}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-xs font-medium shadow-sm"
-          >
-            <Plus className="size-3.5" />
-            <span>New Chat</span>
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {conversations.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 opacity-50">
-              <div className="size-16 rounded-full bg-muted flex items-center justify-center">
-                <MessageSquare className="size-8 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">No recent chats</p>
-                <p className="text-[11px]">Start a new conversation to see it here.</p>
-              </div>
-            </div>
-          ) : (
-            conversations.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onSelectConversation(c.id)}
-                className="w-full flex flex-col p-4 rounded-2xl border bg-card hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
-              >
-                <div className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
-                  {c.title || "Untitled Conversation"}
-                </div>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
-                    {new Date(c.updatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </div>
+      <ConversationListView
+        conversations={conversations}
+        onSelect={onSelectConversation}
+        onCreate={onCreateConversation}
+        className={className}
+      />
     )
   }
 
@@ -256,94 +158,9 @@ export function ChatPanel({ className }: ChatPanelProps) {
       <Conversation className="flex-1">
         <ConversationContent className="p-4 space-y-6">
           {messages.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 animate-in fade-in duration-500 opacity-60">
-              <div className="size-16 rounded-3xl bg-primary/10 flex items-center justify-center mb-2 mx-auto">
-                <MessageSquare className="size-8 text-primary" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold tracking-tight text-foreground">
-                  Ready to visualize?
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-[240px] mx-auto">
-                  Type your prompt below or pick an example from the diagram panel to get started.
-                </p>
-              </div>
-            </div>
+            <ChatEmptyState />
           ) : (
-            messages.map((message) => {
-              const content = getMessageContent(message)
-
-              return (
-                <Message
-                  key={message.id}
-                  from={message.role}
-                  className="animate-in fade-in slide-in-from-bottom-2 duration-300"
-                >
-                  <MessageContent
-                    className={cn(
-                      "px-4 py-3 rounded-2xl shadow-sm border",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground border-primary/20"
-                        : "bg-muted/50 border-border"
-                    )}
-                  >
-                    {message.role === "assistant" ? (
-                      <MessageResponse className="prose prose-sm dark:prose-invert">
-                        {content}
-                      </MessageResponse>
-                    ) : (
-                      <div className="whitespace-pre-wrap font-medium">{content}</div>
-                    )}
-                    {(() => {
-                      const updateChartTool = (message.parts || []).find(
-                        (part) => part.type === "tool-update_chart"
-                      ) as UpdateChartToolUIPart | undefined
-
-                      if (!updateChartTool) return null
-
-                      return (
-                        <Tool key={updateChartTool.toolCallId} className="mt-4" defaultOpen={true}>
-                          <ToolHeader
-                            type="tool-update_chart"
-                            state={updateChartTool.state}
-                            title="Update Diagram"
-                          />
-                          <ToolContent className="space-y-4 px-4 py-4">
-                            {/* Simplified rendering to show only the descriptive changes */}
-                            {(updateChartTool.input?.description ||
-                              (updateChartTool.state === "output-available" &&
-                                updateChartTool.output?.description)) && (
-                              <div className="space-y-1.5">
-                                <h4 className="font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
-                                  Changes
-                                </h4>
-                                <MessageResponse className="prose prose-sm dark:prose-invert text-xs leading-relaxed">
-                                  {updateChartTool.state === "output-available"
-                                    ? updateChartTool.output?.description
-                                    : updateChartTool.input?.description}
-                                </MessageResponse>
-                              </div>
-                            )}
-
-                            {updateChartTool.state === "output-error" &&
-                              updateChartTool.errorText && (
-                                <div className="space-y-1.5">
-                                  <h4 className="font-medium text-destructive text-[10px] uppercase tracking-wider">
-                                    Error
-                                  </h4>
-                                  <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs">
-                                    {updateChartTool.errorText}
-                                  </div>
-                                </div>
-                              )}
-                          </ToolContent>
-                        </Tool>
-                      )
-                    })()}
-                  </MessageContent>
-                </Message>
-              )
-            })
+            messages.map((message) => <ChatMessage key={message.id} message={message} />)
           )}
         </ConversationContent>
         <ConversationScrollButton className="bottom-24" />

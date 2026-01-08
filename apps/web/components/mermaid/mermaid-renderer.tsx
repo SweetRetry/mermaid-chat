@@ -5,15 +5,21 @@ import { useNodeSelection } from "@/hooks/use-node-selection"
 import { exportSvgToPng } from "@/lib/utils/svg-export"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { Check, Code, Copy, Download, Eye, Maximize2, Minus, Plus, RotateCcw } from "lucide-react"
+import { Check, Code, Copy, Download, Maximize2, Minus, Plus, RotateCcw } from "lucide-react"
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@workspace/ui/components/dialog"
 import mermaid from "mermaid"
 import { useEffect, useRef, useState } from "react"
 
 interface MermaidRendererProps {
   code: string
   className?: string
-  showCode: boolean
-  onToggleView: () => void
   onSvgChange?: (svg: string) => void
   onNodeSelect?: (label: string) => void
   minimal?: boolean
@@ -29,8 +35,6 @@ mermaid.initialize({
 export function MermaidRenderer({
   code,
   className,
-  showCode,
-  onToggleView,
   onSvgChange,
   onNodeSelect,
   minimal = false,
@@ -142,15 +146,40 @@ export function MermaidRenderer({
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleView}
-            className="size-8 rounded-lg"
-            title={showCode ? "Show Preview" : "View Code"}
-          >
-            {showCode ? <Eye className="size-4" /> : <Code className="size-4" />}
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8 rounded-lg" title="View Code">
+                <Code className="size-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-3xl! max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Code className="size-5" />
+                  Mermaid Source Code
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-4 font-mono text-[13px] leading-relaxed border group relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopy}
+                  className="absolute top-2 right-2 size-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur"
+                  title="Copy Code"
+                >
+                  {copied ? (
+                    <Check className="size-4 text-green-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                </Button>
+                <pre className="whitespace-pre-wrap break-all">
+                  <code>{code}</code>
+                </pre>
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Button
             variant="ghost"
             size="icon"

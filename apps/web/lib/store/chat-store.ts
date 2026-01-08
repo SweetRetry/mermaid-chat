@@ -4,7 +4,7 @@ import type { Conversation } from "@/components/conversation/conversation-select
 import type { UIMessage } from "@ai-sdk/react"
 import { create } from "zustand"
 
-interface ConversationDetail {
+export interface ConversationDetail {
   id: string
   title: string
   messages: Array<{

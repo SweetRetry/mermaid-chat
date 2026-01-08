@@ -2,7 +2,7 @@
 
 import { ChatPanel } from "@/components/chat/chat-panel"
 import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
-import { useChatStore } from "@/lib/store/chat-store"
+import { useConversation } from "@/hooks/use-conversations"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/resizable"
 import { SidebarTrigger, useSidebar } from "@workspace/ui/components/sidebar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { useCallback, useEffect } from "react"
+import { useCallback } from "react"
 import type { Layout } from "react-resizable-panels"
 
 interface AppShellProps {
@@ -20,20 +20,9 @@ interface AppShellProps {
 }
 
 export function AppShell({ defaultLayout, groupId, conversationId }: AppShellProps) {
-  const loadConversation = useChatStore((state) => state.loadConversation)
-  const clearConversation = useChatStore((state) => state.clearConversation)
-  const conversationDetail = useChatStore((state) => state.conversationDetail)
-  const isLoadingConversation = useChatStore((state) => state.isLoadingConversation)
+  const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
   const { isMobile, state } = useSidebar()
   const isCollapsed = state === "collapsed"
-
-  useEffect(() => {
-    if (conversationId) {
-      loadConversation(conversationId)
-    } else {
-      clearConversation()
-    }
-  }, [conversationId, loadConversation, clearConversation])
 
   const handleLayoutChange = useCallback(
     (layout: Layout) => {

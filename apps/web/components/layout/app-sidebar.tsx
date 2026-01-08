@@ -1,6 +1,7 @@
 "use client"
 
 import type { Conversation } from "@/components/conversation/conversation-selector"
+import { useConversations } from "@/hooks/use-conversations"
 import { useChatStore } from "@/lib/store/chat-store"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -19,7 +20,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { MessageSquare, Plus, Trash2 } from "lucide-react"
 import { usePathname, useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo } from "react"
+import { useCallback, useMemo } from "react"
 
 interface AppSidebarProps {
   className?: string
@@ -30,19 +31,13 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname()
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
-  const fetchConversations = useChatStore((state) => state.fetchConversations)
   const deleteConversation = useChatStore((state) => state.deleteConversation)
-  const conversations = useChatStore((state) => state.conversations)
-  const isLoadingConversations = useChatStore((state) => state.isLoadingConversations)
+  const { conversations, isLoading: isLoadingConversations } = useConversations()
 
   const conversationId = useMemo(() => {
     const match = pathname.match(/^\/chat\/([^/]+)/)
     return match?.[1] ?? null
   }, [pathname])
-
-  useEffect(() => {
-    fetchConversations()
-  }, [fetchConversations])
 
   const handleSelect = useCallback(
     (id: string) => {

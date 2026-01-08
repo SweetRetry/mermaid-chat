@@ -1,6 +1,4 @@
 "use client"
-
-import { ConversationSelector } from "@/components/conversation/conversation-selector"
 import { MODELS } from "@/lib/constants/models"
 import { useChatStore } from "@/lib/store/chat-store"
 import { convertToUIMessages, getMessageContent } from "@/lib/utils/message"
@@ -47,13 +45,12 @@ export function ChatPanel({ className }: ChatPanelProps) {
   const conversationId = useChatStore((state) => state.conversationId)
   const conversationDetail = useChatStore((state) => state.conversationDetail)
   const onConversationUpdate = useChatStore((state) => state.handleConversationUpdate)
-  const onCreateConversation = useChatStore((state) => state.createConversation)
   const conversations = useChatStore((state) => state.conversations)
-  const onDeleteConversation = useChatStore((state) => state.deleteConversation)
   const onSelectConversation = useChatStore((state) => state.loadConversation)
   const initialPrompt = useChatStore((state) => state.initialPrompt)
   const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
-  const loading = useChatStore((state) => state.loadingCount > 0)
+
+  const handleSelectExample = useChatStore((state) => state.handleSelectExample)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -136,7 +133,7 @@ export function ChatPanel({ className }: ChatPanelProps) {
       <ConversationListView
         conversations={conversations}
         onSelect={onSelectConversation}
-        onCreate={onCreateConversation}
+        onSelectExample={handleSelectExample}
         className={className}
       />
     )
@@ -144,21 +141,10 @@ export function ChatPanel({ className }: ChatPanelProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <div className="flex items-center justify-between px-4 h-12 border-b bg-muted/20 backdrop-blur-sm">
-        <ConversationSelector
-          conversations={conversations}
-          currentId={conversationId}
-          onSelect={onSelectConversation}
-          onNew={onCreateConversation}
-          onDelete={onDeleteConversation}
-          loading={loading}
-        />
-      </div>
-
       <Conversation className="flex-1">
         <ConversationContent className="p-4 space-y-6">
           {messages.length === 0 ? (
-            <ChatEmptyState />
+            <ChatEmptyState onSelectExample={handleSelectExample} />
           ) : (
             messages.map((message) => <ChatMessage key={message.id} message={message} />)
           )}
@@ -166,9 +152,8 @@ export function ChatPanel({ className }: ChatPanelProps) {
         <ConversationScrollButton className="bottom-24" />
       </Conversation>
 
-      <div className="p-4 bg-background/50 backdrop-blur-sm border-t">
+      <div className="p-4 bg-transparent mt-auto">
         <PromptInput
-          className="rounded-2xl border shadow-lg bg-background overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 transition-all"
           onSubmit={({ text }) => {
             if (!text.trim() || !conversationId) return
             sendMessage({ text })

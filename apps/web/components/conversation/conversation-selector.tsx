@@ -50,7 +50,7 @@ export function ConversationSelector({
   const current = conversations.find((c) => c.id === currentId)
 
   return (
-    <div className="flex items-center gap-1.5 p-1 bg-muted/30 rounded-lg border shadow-sm">
+    <div className="flex items-center gap-1.5 p-1 bg-background/40 backdrop-blur-sm rounded-xl">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

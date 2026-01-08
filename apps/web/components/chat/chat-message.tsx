@@ -22,10 +22,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
     <Message from={message.role} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
       <MessageContent
         className={cn(
-          "px-4 py-3 rounded-2xl shadow-sm border",
+          "px-4 py-3 rounded-2xl transition-all",
           message.role === "user"
-            ? "bg-primary text-primary-foreground border-primary/20"
-            : "bg-muted/50 border-border"
+            ? "bg-primary text-primary-foreground shadow-md shadow-primary/10"
+            : "bg-background/60 backdrop-blur-md border border-muted/20 shadow-sm"
         )}
       >
         {message.role === "assistant" ? (

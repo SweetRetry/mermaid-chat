@@ -30,7 +30,7 @@ interface ChatInputProps {
 }
 
 import { Button } from "@workspace/ui/components/button"
-import { Plus, Wand2 } from "lucide-react"
+import { Plus } from "lucide-react"
 
 export function ChatInput({
   input,
@@ -69,14 +69,6 @@ export function ChatInput({
             className="size-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5"
           >
             <Plus className="size-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-2 rounded-full px-3 hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground"
-          >
-            <Wand2 className="size-4" />
-            <span className="text-xs font-medium">Tools</span>
           </Button>
         </div>
 

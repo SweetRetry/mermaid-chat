@@ -22,8 +22,8 @@ function ResizablePanelGroup({ className, ...props }: GroupProps) {
   )
 }
 
-function ResizablePanel({ ...props }: PanelProps) {
-  return <Panel data-slot="resizable-panel" {...props} />
+function ResizablePanel({ className, ...props }: PanelProps) {
+  return <Panel data-slot="resizable-panel" className={cn(className)} {...props} />
 }
 
 function ResizableHandle({

@@ -66,13 +66,18 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
           defaultLayout={defaultLayout}
           onLayoutChange={handleLayoutChange}
         >
-          <ResizablePanel id="preview" defaultSize={70} minSize={30} className="min-w-0 bg-muted/5">
+          <ResizablePanel
+            id="preview"
+            defaultSize={defaultLayout?.[0] ?? 70}
+            minSize="50%"
+            className="bg-muted/5"
+          >
             <MermaidPanel />
           </ResizablePanel>
 
           <ResizableHandle className="w-px bg-border/40 hover:bg-primary/40 transition-colors" />
 
-          <ResizablePanel id="chat" defaultSize={30} minSize={20} className="min-w-[350px]">
+          <ResizablePanel id="chat" defaultSize={defaultLayout?.[1] ?? 30} minSize="350px">
             <ChatPanel key={conversationId ?? "empty"} conversationId={conversationId} />
           </ResizablePanel>
         </ResizablePanelGroup>

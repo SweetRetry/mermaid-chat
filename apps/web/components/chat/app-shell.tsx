@@ -35,18 +35,17 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
   return (
     <div className="h-full flex flex-col overflow-hidden">
       {/* Header with sidebar trigger for mobile/collapsed state */}
-      <header className="py-3 flex items-center px-4 gap-3">
-        {(isMobile || isCollapsed) && <SidebarTrigger className="size-7" />}
-        {conversationId && (
-          <div className="flex items-center rounded-xl">
-            {isLoadingConversation ? (
-              <Skeleton className="h-5 w-32" />
-            ) : (
-              conversationDetail?.title || "New Diagram"
-            )}
-          </div>
-        )}
-      </header>
+
+      {(isMobile || isCollapsed) && <SidebarTrigger className="size-7" />}
+      {conversationId && (
+        <div className="flex items-center rounded-xl absolute top-4 left-4">
+          {isLoadingConversation ? (
+            <Skeleton className="h-5 w-32" />
+          ) : (
+            conversationDetail?.title || "New Diagram"
+          )}
+        </div>
+      )}
 
       <div className="flex-1 overflow-hidden">
         <ResizablePanelGroup
@@ -66,7 +65,12 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
 
           <ResizableHandle className="w-px bg-border/40 hover:bg-primary/40 transition-colors" />
 
-          <ResizablePanel id="chat" defaultSize={defaultLayout?.[1] ?? 30} minSize="350px">
+          <ResizablePanel
+            id="chat"
+            defaultSize={defaultLayout?.[1] ?? 30}
+            minSize="350px"
+            className="max-h-screen"
+          >
             <ChatPanel key={conversationId ?? "empty"} conversationId={conversationId} />
           </ResizablePanel>
         </ResizablePanelGroup>

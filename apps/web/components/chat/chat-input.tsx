@@ -58,10 +58,10 @@ export function ChatInput({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           placeholder={placeholder}
-          className="min-h-[100px] text-lg py-4"
+          className="min-h-[60px]"
         />
       </PromptInputBody>
-      <PromptInputFooter className="px-4 pb-4">
+      <PromptInputFooter>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"

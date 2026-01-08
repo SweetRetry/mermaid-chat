@@ -2,7 +2,7 @@ import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const password = process.env.SITE_PASSWORD
 
   // 如果没有设置密码，跳过验证

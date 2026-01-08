@@ -166,8 +166,8 @@ export function ChatPanel({ className, conversationId }: ChatPanelProps) {
   }
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
-      <Conversation className="flex-1">
+    <div className="h-screen overflow-auto flex flex-col">
+      <Conversation>
         <ConversationContent className="p-4 space-y-6">
           {messages.length === 0 ? (
             <ChatEmptyState />

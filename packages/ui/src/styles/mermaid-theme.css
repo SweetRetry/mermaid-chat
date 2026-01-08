@@ -1,211 +1,355 @@
-/* Mermaid Diagram Theming - Uses design system CSS variables */
+/* Mermaid Diagram Theming - Enhanced Design System Integration */
 
-.mermaid-container svg {
-  font-family: inherit;
+:root {
+  --mermaid-node-bg: var(--secondary);
+  --mermaid-node-border: var(--border);
+  --mermaid-node-text: var(--foreground);
+  --mermaid-edge-color: var(--muted-foreground);
+  --mermaid-label-bg: var(--background);
+  --mermaid-cluster-bg: var(--muted);
 }
 
-/* Node styles */
+.mermaid-container {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.mermaid-container svg {
+  font-family: inherit !important;
+  max-width: 100%;
+}
+
+/* --- Global Shapes --- */
 .mermaid-container .node rect,
 .mermaid-container .node circle,
 .mermaid-container .node ellipse,
 .mermaid-container .node polygon,
-.mermaid-container .node path {
-  fill: var(--secondary);
-  stroke: var(--border);
-  stroke-width: 1.5px;
+.mermaid-container .node path,
+.mermaid-container .node .label-container {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+  stroke-width: 1.5px !important;
+  transition: all 0.2s ease;
 }
 
-.mermaid-container .node .label {
-  color: var(--foreground);
-}
-
+/* Node Text Styles */
+.mermaid-container .node .label,
 .mermaid-container .nodeLabel,
 .mermaid-container .label text,
-.mermaid-container .node text {
-  fill: var(--foreground);
+.mermaid-container .node text,
+.mermaid-container .node foreignObject {
+  fill: var(--mermaid-node-text) !important;
+  color: var(--mermaid-node-text) !important;
+  font-size: 14px !important;
+}
+
+/* --- Flowchart Specific --- */
+.mermaid-container .cluster rect {
+  fill: var(--mermaid-cluster-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+  stroke-dasharray: 4;
+  opacity: 0.5;
+}
+
+.mermaid-container .cluster text {
+  fill: var(--muted-foreground) !important;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Edge/Arrow styles */
 .mermaid-container .edgePath .path,
-.mermaid-container .flowchart-link {
-  stroke: var(--muted-foreground);
-  stroke-width: 1.5px;
+.mermaid-container .flowchart-link,
+.mermaid-container .edge-thickness-normal,
+.mermaid-container .edge-thickness-thick,
+.mermaid-container .edge-thickness-thin,
+.mermaid-container path.link,
+.mermaid-container path.transition,
+.mermaid-container .relationshipLine {
+  stroke: var(--mermaid-edge-color) !important;
+  stroke-width: 1.5px !important;
+}
+
+.mermaid-container .edge-thickness-thick {
+  stroke-width: 3.5px !important;
 }
 
 .mermaid-container .edgePath marker path,
-.mermaid-container .marker {
-  fill: var(--muted-foreground);
-  stroke: var(--muted-foreground);
+.mermaid-container .marker,
+.mermaid-container #arrowhead,
+.mermaid-container [id^="mermaid-arrow"] {
+  fill: var(--mermaid-edge-color) !important;
+  stroke: var(--mermaid-edge-color) !important;
 }
 
 .mermaid-container .edgeLabel {
-  background-color: var(--background);
-  color: var(--muted-foreground);
+  background-color: transparent !important; /* 强制背景透明 */
+  color: var(--mermaid-edge-color) !important;
 }
 
-.mermaid-container .edgeLabel rect {
-  fill: var(--background);
-  opacity: 0.9;
+.mermaid-container .edgeLabel rect,
+.mermaid-container .label rect,
+.mermaid-container [class*="edgeLabel"] rect {
+  fill: var(--background) !important; /* 使用背景色作为文字衬底 */
+  fill-opacity: 0.9 !important;
+  stroke: none !important;
 }
 
+/* 覆盖所有可能的文字路径 */
 .mermaid-container .edgeLabel text,
-.mermaid-container .edgeLabel span {
-  fill: var(--muted-foreground);
-  color: var(--muted-foreground);
+.mermaid-container .edgeLabel span,
+.mermaid-container .edgeLabel tspan,
+.mermaid-container .edgeLabel div,
+.mermaid-container .label text,
+.mermaid-container .label span,
+.mermaid-container [class*="edgeLabel"] text,
+.mermaid-container .relation-label {
+  fill: var(--mermaid-edge-color) !important;
+  color: var(--mermaid-edge-color) !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
+  opacity: 1 !important;
 }
 
-/* Cluster/Subgraph styles */
-.mermaid-container .cluster rect {
-  fill: var(--muted);
-  stroke: var(--border);
-  stroke-width: 1px;
-}
-
-.mermaid-container .cluster text {
-  fill: var(--muted-foreground);
-}
-
-/* Special node types */
-.mermaid-container .node.default > rect,
-.mermaid-container .node.default > polygon {
-  fill: var(--secondary);
-}
-
-.mermaid-container .node.decision > polygon {
-  fill: var(--chart-4);
-}
-
-.mermaid-container .node.decision text {
-  fill: var(--foreground);
-}
-
-/* Sequence diagram */
+/* --- Sequence Diagram --- */
 .mermaid-container .actor {
-  fill: var(--secondary);
-  stroke: var(--border);
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
-.mermaid-container .actor text {
-  fill: var(--foreground);
-}
-
-.mermaid-container .sequenceNumber {
-  fill: var(--primary-foreground);
-}
-
-.mermaid-container rect.note {
-  fill: var(--chart-4);
-  stroke: var(--border);
-}
-
-.mermaid-container .noteText {
-  fill: var(--foreground);
+.mermaid-container .actor-line {
+  stroke: var(--mermaid-node-border) !important;
 }
 
 .mermaid-container .messageLine0,
 .mermaid-container .messageLine1 {
-  stroke: var(--muted-foreground);
+  stroke: var(--mermaid-edge-color) !important;
+  stroke-width: 1.5px;
 }
 
 .mermaid-container .messageText {
-  fill: var(--foreground);
+  fill: var(--mermaid-node-text) !important;
+}
+
+.mermaid-container .labelBox {
+  fill: var(--mermaid-node-bg) !important;
+}
+
+.mermaid-container .labelText {
+  fill: var(--mermaid-node-text) !important;
+}
+
+.mermaid-container .loopText {
+  fill: var(--mermaid-node-text) !important;
+}
+
+.mermaid-container .loopLine {
+  stroke: var(--mermaid-node-border) !important;
+}
+
+.mermaid-container .note {
+  fill: var(--chart-4) !important;
+  stroke: var(--border) !important;
+  opacity: 0.9;
+}
+
+.mermaid-container .noteText {
+  fill: var(--foreground) !important;
 }
 
 .mermaid-container .activation0,
 .mermaid-container .activation1,
 .mermaid-container .activation2 {
-  fill: var(--accent);
-  stroke: var(--border);
+  fill: var(--accent) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
-/* Class diagram */
+/* --- Class Diagram --- */
 .mermaid-container .classGroup rect {
-  fill: var(--secondary);
-  stroke: var(--border);
-}
-
-.mermaid-container .classGroup text {
-  fill: var(--foreground);
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
 .mermaid-container .classGroup line {
-  stroke: var(--border);
+  stroke: var(--mermaid-node-border) !important;
 }
 
-/* State diagram */
+.mermaid-container .classLabel {
+  fill: var(--mermaid-node-text) !important;
+}
+
+/* --- State Diagram --- */
+.mermaid-container .state-start,
+.mermaid-container .state-end {
+  fill: var(--foreground) !important;
+  stroke: none;
+}
+
 .mermaid-container .stateGroup rect {
-  fill: var(--secondary);
-  stroke: var(--border);
-}
-
-.mermaid-container .stateGroup text {
-  fill: var(--foreground);
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
 .mermaid-container .stateGroup .composit {
-  fill: var(--background);
+  fill: var(--background) !important;
 }
 
-/* Git graph */
-.mermaid-container .commit-id,
-.mermaid-container .commit-msg {
-  fill: var(--foreground);
+.mermaid-container .state-transition {
+  stroke: var(--mermaid-edge-color) !important;
 }
 
-/* ER diagram */
+/* --- ER Diagram --- */
 .mermaid-container .entityBox {
-  fill: var(--secondary);
-  stroke: var(--border);
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
 .mermaid-container .entityLabel {
-  fill: var(--foreground);
+  fill: var(--mermaid-node-text) !important;
 }
 
 .mermaid-container .relationshipLabelBox {
-  fill: var(--background);
+  fill: var(--mermaid-label-bg) !important;
 }
 
-.mermaid-container .relationshipLabel {
-  fill: var(--muted-foreground);
+.mermaid-container .relationshipLine {
+  stroke: var(--mermaid-edge-color) !important;
 }
 
-/* Pie chart */
+/* --- Git Graph --- */
+.mermaid-container .commit-id,
+.mermaid-container .commit-msg {
+  fill: var(--mermaid-node-text) !important;
+}
+
+.mermaid-container .branch-label {
+  fill: var(--mermaid-node-text) !important;
+}
+
+/* --- Mindmap --- */
+/* Note: Mermaid Mindmaps use CSS classes differently */
+.mermaid-container .mindmap-node rect,
+.mermaid-container .mindmap-node circle {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+}
+
+.mermaid-container .mindmap-node text {
+  fill: var(--mermaid-node-text) !important;
+}
+
+.mermaid-container .mindmap-path {
+  stroke: var(--mermaid-edge-color) !important;
+  stroke-width: 2px;
+}
+
+/* --- Pie Chart --- */
 .mermaid-container .pieCircle {
-  stroke: var(--background);
+  stroke: var(--background) !important;
+  stroke-width: 2px;
 }
 
-/* Journey diagram */
-.mermaid-container .journey-section-header {
-  fill: var(--muted-foreground);
+.mermaid-container .pieTitleText {
+  fill: var(--foreground) !important;
 }
 
-/* Gantt chart */
+.mermaid-container .slice {
+  stroke: var(--background) !important;
+}
+
+/* --- Gantt Chart --- */
 .mermaid-container .section {
-  fill: var(--muted);
-  stroke: var(--border);
+  fill: var(--mermaid-cluster-bg) !important;
+  opacity: 0.3;
 }
 
 .mermaid-container .task {
-  fill: var(--chart-1);
-  stroke: var(--border);
+  fill: var(--chart-1) !important;
+  stroke: var(--mermaid-node-border) !important;
 }
 
 .mermaid-container .taskText {
-  fill: var(--foreground);
+  fill: var(--foreground) !important;
 }
 
-/* Interactive hover state */
+.mermaid-container .grid line {
+  stroke: var(--border) !important;
+}
+
+.mermaid-container .today {
+  stroke: var(--destructive) !important;
+}
+
+/* --- Requirement Diagram --- */
+.mermaid-container .requirement {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+}
+
+.mermaid-container .requirementRect {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+}
+
+/* --- Timeline --- */
+.mermaid-container .timeline-event text {
+  fill: var(--foreground) !important;
+}
+
+.mermaid-container .timeline-node {
+  fill: var(--mermaid-node-bg) !important;
+  stroke: var(--mermaid-node-border) !important;
+}
+
+/* --- Quadrant Chart --- */
+.mermaid-container .quadrant-background {
+  fill: var(--muted) !important;
+  opacity: 0.2;
+}
+
+.mermaid-container .quadrant-label {
+  fill: var(--foreground) !important;
+}
+
+.mermaid-container .quadrant-point {
+  fill: var(--primary) !important;
+}
+
+/* --- Interaction & Polish --- */
 .mermaid-container .node:hover rect,
 .mermaid-container .node:hover circle,
 .mermaid-container .node:hover ellipse,
-.mermaid-container .node:hover polygon {
-  filter: brightness(0.95);
+.mermaid-container .node:hover polygon,
+.mermaid-container .node:hover path {
+  filter: brightness(1.1);
+  stroke: var(--primary) !important;
+  stroke-width: 2px !important;
+  cursor: pointer;
 }
 
 .dark .mermaid-container .node:hover rect,
 .dark .mermaid-container .node:hover circle,
 .dark .mermaid-container .node:hover ellipse,
-.dark .mermaid-container .node:hover polygon {
-  filter: brightness(1.15);
+.dark .mermaid-container .node:hover polygon,
+.dark .mermaid-container .node:hover path {
+  filter: brightness(1.2);
+}
+
+/* Tooltip/Labels in Sequence */
+.mermaid-container .labelBox {
+  fill: var(--background) !important;
+  stroke: var(--border) !important;
+}
+
+/* Additional specificity for Mermaid v10+ */
+[id^="mermaid-"] .node rect,
+[id^="mermaid-"] .node circle,
+[id^="mermaid-"] .node ellipse,
+[id^="mermaid-"] .node polygon {
+  rx: 8px; /* Rounded corners for rectangles */
+  ry: 8px;
 }

@@ -9,7 +9,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       attribute="class"
       defaultTheme="system"
       enableSystem
-      forcedTheme="light"
+      forcedTheme="dark"
       disableTransitionOnChange
       enableColorScheme
     >

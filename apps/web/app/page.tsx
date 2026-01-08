@@ -32,7 +32,6 @@ export default function Page() {
   const [isPending, startTransition] = useTransition()
   const [model, setModel] = useState("deepseek-chat")
   const createConversation = useChatStore((state) => state.createConversation)
-  const setInitialPrompt = useChatStore((state) => state.setInitialPrompt)
 
   const handleSubmit = async (prompt: string) => {
     if (!prompt.trim()) return
@@ -40,8 +39,8 @@ export default function Page() {
     startTransition(async () => {
       const conversationId = await createConversation()
       if (conversationId) {
-        setInitialPrompt(prompt)
-        router.push(`/chat/${conversationId}`)
+        // Pass prompt via URL - event-driven, no intermediate store state
+        router.push(`/chat/${conversationId}?prompt=${encodeURIComponent(prompt)}`)
       }
     })
   }

@@ -17,10 +17,14 @@ interface AppShellProps {
   defaultLayout?: Layout
   groupId: string
   conversationId?: string
+  initialPrompt?: string
 }
 
-export function AppShell({ defaultLayout, groupId, conversationId }: AppShellProps) {
-  const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
+export function AppShell({ defaultLayout, groupId, conversationId, initialPrompt }: AppShellProps) {
+  // Skip loading for new conversations with initial prompt (they have no messages yet)
+  const { conversationDetail, isLoading: isLoadingConversation } = useConversation(
+    initialPrompt ? undefined : conversationId
+  )
   const { isMobile, state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
@@ -60,7 +64,7 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
             minSize="50%"
             className="bg-muted/5"
           >
-            <MermaidPanel />
+            <MermaidPanel className="max-h-screen" />
           </ResizablePanel>
 
           <ResizableHandle className="w-px bg-border/40 hover:bg-primary/40 transition-colors" />
@@ -71,7 +75,7 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
             minSize="350px"
             className="max-h-screen"
           >
-            <ChatPanel key={conversationId ?? "empty"} conversationId={conversationId} />
+            <ChatPanel key={conversationId ?? "empty"} conversationId={conversationId} initialPrompt={initialPrompt} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

@@ -31,13 +31,11 @@ export function MermaidPanel({ className }: MermaidPanelProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <div className="flex-1 overflow-hidden relative">
-        {code ? (
-          <MermaidRenderer code={code} className="h-full" onNodeSelect={appendInputText} />
-        ) : (
-          <MermaidEmptyState />
-        )}
-      </div>
+      {code ? (
+        <MermaidRenderer code={code} className="h-full" onNodeSelect={appendInputText} />
+      ) : (
+        <MermaidEmptyState />
+      )}
     </div>
   )
 }

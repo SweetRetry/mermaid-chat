@@ -23,14 +23,11 @@ interface ChatStore {
   conversationDetail: ConversationDetail | null
   isLoadingConversations: boolean
   isLoadingConversation: boolean
-  initialPrompt: string | null
   inputText: string
   fetchConversations: () => Promise<void>
   loadConversation: (id: string) => Promise<void>
   createConversation: () => Promise<string | null>
   deleteConversation: (id: string) => Promise<void>
-  clearInitialPrompt: () => void
-  setInitialPrompt: (prompt: string) => void
   setMermaidCode: (code: string) => void
   clearConversation: () => void
   setInputText: (text: string) => void
@@ -46,7 +43,6 @@ export const useChatStore = create<ChatStore>((set) => {
     conversationDetail: null,
     isLoadingConversations: true,
     isLoadingConversation: false,
-    initialPrompt: null,
     inputText: "",
     fetchConversations: async () => {
       set({ isLoadingConversations: true })
@@ -105,12 +101,6 @@ export const useChatStore = create<ChatStore>((set) => {
       set((state) => ({
         conversations: state.conversations.filter((c) => c.id !== id),
       }))
-    },
-    clearInitialPrompt: () => {
-      set({ initialPrompt: null })
-    },
-    setInitialPrompt: (prompt: string) => {
-      set({ initialPrompt: prompt })
     },
     setMermaidCode: (code: string) => {
       set({ mermaidCode: code })

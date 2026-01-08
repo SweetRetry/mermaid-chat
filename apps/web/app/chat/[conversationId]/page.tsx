@@ -7,15 +7,22 @@ const FALLBACK_LAYOUT = { preview: 75, chat: 25 }
 
 interface PageProps {
   params: Promise<{ conversationId: string }>
+  searchParams: Promise<{ prompt?: string }>
 }
 
-export default async function ChatPage({ params }: PageProps) {
+export default async function ChatPage({ params, searchParams }: PageProps) {
   const { conversationId } = await params
+  const { prompt } = await searchParams
   const cookieStore = await cookies()
   const defaultLayout =
     parseLayout(cookieStore.get(GROUP_ID)?.value, ["preview", "chat"]) ?? FALLBACK_LAYOUT
 
   return (
-    <AppShell defaultLayout={defaultLayout} groupId={GROUP_ID} conversationId={conversationId} />
+    <AppShell
+      defaultLayout={defaultLayout}
+      groupId={GROUP_ID}
+      conversationId={conversationId}
+      initialPrompt={prompt}
+    />
   )
 }

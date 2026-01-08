@@ -22,28 +22,26 @@ import { ChatMessage } from "./chat-message"
 interface ChatPanelProps {
   className?: string
   conversationId?: string
+  initialPrompt?: string
 }
 
-export function ChatPanel({ className, conversationId }: ChatPanelProps) {
+export function ChatPanel({ className, conversationId, initialPrompt }: ChatPanelProps) {
   const [model, setModel] = useState("deepseek-chat")
 
   // Batch select state values with shallow comparison to reduce re-renders
-  const { input, currentChart, conversationDetail, isLoadingConversation, initialPrompt } =
-    useChatStore(
-      useShallow((state) => ({
-        input: state.inputText,
-        currentChart: state.mermaidCode,
-        conversationDetail: state.conversationDetail,
-        isLoadingConversation: state.isLoadingConversation,
-        initialPrompt: state.initialPrompt,
-      }))
-    )
+  const { input, currentChart, conversationDetail, isLoadingConversation } = useChatStore(
+    useShallow((state) => ({
+      input: state.inputText,
+      currentChart: state.mermaidCode,
+      conversationDetail: state.conversationDetail,
+      isLoadingConversation: state.isLoadingConversation,
+    }))
+  )
 
   // Select actions separately (they don't change, so no shallow needed)
   const setInput = useChatStore((state) => state.setInputText)
   const onChartUpdate = useChatStore((state) => state.setMermaidCode)
   const onConversationUpdate = useChatStore((state) => state.fetchConversations)
-  const onPromptSent = useChatStore((state) => state.clearInitialPrompt)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -90,12 +88,17 @@ export function ChatPanel({ className, conversationId }: ChatPanelProps) {
     }
   }, [initialUIMessages, setMessages, messages.length])
 
+  // Track if initial prompt has been sent - use ref to avoid re-render cycles
+  const initialPromptSentRef = useRef(false)
+
+  // Send initial prompt once when ready - minimal dependencies
   useEffect(() => {
-    if (initialPrompt && conversationId && status === "ready") {
-      sendMessage({ text: initialPrompt })
-      onPromptSent()
-    }
-  }, [initialPrompt, conversationId, sendMessage, onPromptSent, status])
+    if (!initialPrompt || !conversationId || initialPromptSentRef.current) return
+    if (status !== "ready") return
+
+    initialPromptSentRef.current = true
+    sendMessage({ text: initialPrompt })
+  }, [initialPrompt, conversationId, status]) // Intentionally exclude sendMessage to prevent re-triggering
 
   // Use ref to track current chart without causing re-renders
   const currentChartRef = useRef(currentChart)
@@ -139,7 +142,8 @@ export function ChatPanel({ className, conversationId }: ChatPanelProps) {
     )
   }
 
-  if (isLoadingConversation) {
+  // Skip loading skeleton for new conversations with initial prompt
+  if (isLoadingConversation && !initialPrompt) {
     return (
       <div className={cn("flex flex-col h-full", className)}>
         <div className="flex-1 p-4 space-y-6">

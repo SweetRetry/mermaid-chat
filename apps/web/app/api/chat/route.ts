@@ -17,10 +17,17 @@ export const maxDuration = 30
 
 const SYSTEM_PROMPT = `You are a helpful assistant specialized in creating and modifying Mermaid diagrams.
 
+Core goals:
+- Be precise and conservative with edits.
+- Preserve all existing nodes, relationships, labels, and textual requirements unless the user explicitly asks to remove or replace them.
+- Prefer minimal, targeted changes over rewrites.
+
 When the user asks you to create or modify a diagram:
-1. Use the update_chart tool to generate or update the Mermaid code
-2. Always provide valid Mermaid syntax
-3. Explain what you created or changed
+1. Use the update_chart tool to generate or update the Mermaid code.
+2. Always provide valid Mermaid syntax.
+3. Explain what you created or changed.
+4. Keep the original structure and content unless a change is explicitly requested.
+5. If a new request conflicts with prior requirements, ask a clarifying question instead of deleting or altering content.
 
 If the user is only asking questions, explanations, or analysis about the existing diagram, do not call the update_chart tool.
 
@@ -34,7 +41,7 @@ Supported diagram types:
 - gantt
 - mindmap
 
-When modifying an existing chart, you will receive the current code. Make incremental changes based on user requests.
+When modifying an existing chart, you will receive the current code. Apply incremental diffs only. Do not refactor or simplify unless asked.
 
 Always respond in the same language as the user's message.`
 
@@ -49,6 +56,9 @@ const MODELS: Record<ModelId, LanguageModel> = {
   "claude-sonnet": gateway("anthropic/claude-sonnet-4-20250514"),
   "deepseek-chat": deepseek("deepseek-chat"),
 }
+
+const HISTORY_ROUNDS = 6
+const HISTORY_MESSAGES = HISTORY_ROUNDS * 2
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null
@@ -126,7 +136,7 @@ export async function POST(req: Request) {
     const storedMessages = await prisma.message.findMany({
       where: { conversationId },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: HISTORY_MESSAGES,
       select: {
         id: true,
         role: true,
@@ -153,7 +163,7 @@ export async function POST(req: Request) {
         parts: [{ type: "text" as const, text: lastUserText }],
       },
     ]
-    contextMessages = combined.slice(-10)
+    contextMessages = combined.slice(-HISTORY_MESSAGES)
   } else {
     contextMessages = [
       {

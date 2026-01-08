@@ -129,80 +129,81 @@ export function MermaidRenderer({
         handleNodeSelect(event.target, event as unknown as Event)
       }}
     >
-      {!minimal && (
-        <div
-          className="mermaid-container w-full h-full flex items-center justify-center p-8"
-          style={{
-            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-            transformOrigin: "center center",
-          }}
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
-      )}
-
       <div
-        className="absolute bottom-4 right-4 flex flex-col gap-1.5 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-10 scale-90 sm:scale-100"
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <div className="flex flex-col gap-1">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-lg" title="View Code">
-                <Code className="size-4" />
+        className={cn(
+          "mermaid-container w-full h-full flex items-center justify-center",
+          minimal ? "p-4" : "p-8"
+        )}
+        style={{
+          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+          transformOrigin: "center center",
+        }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+
+      {!minimal && (
+        <>
+          <div
+            className="absolute bottom-4 right-4 flex flex-col gap-1.5 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-20 scale-90 sm:scale-100"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-col gap-1">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="size-8 rounded-lg" title="View Code">
+                    <Code className="size-4" />
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl! max-h-[80vh] flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Code className="size-5" />
+                      Mermaid Source Code
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-4 font-mono text-[13px] leading-relaxed border group relative">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleCopy}
+                      className="absolute top-2 right-2 size-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur"
+                      title="Copy Code"
+                    >
+                      {copied ? (
+                        <Check className="size-4 text-green-500" />
+                      ) : (
+                        <Copy className="size-4" />
+                      )}
+                    </Button>
+                    <pre className="whitespace-pre-wrap break-all">
+                      <code>{code}</code>
+                    </pre>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleCopy}
+                className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                title="Copy Mermaid Code"
+              >
+                {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl! max-h-[80vh] flex flex-col">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Code className="size-5" />
-                  Mermaid Source Code
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-4 font-mono text-[13px] leading-relaxed border group relative">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopy}
-                  className="absolute top-2 right-2 size-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur"
-                  title="Copy Code"
-                >
-                  {copied ? (
-                    <Check className="size-4 text-green-500" />
-                  ) : (
-                    <Copy className="size-4" />
-                  )}
-                </Button>
-                <pre className="whitespace-pre-wrap break-all">
-                  <code>{code}</code>
-                </pre>
-              </div>
-            </DialogContent>
-          </Dialog>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExport}
+                className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                disabled={exporting || !svg}
+                title="Export PNG"
+              >
+                <Download className="size-4" />
+              </Button>
+            </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleCopy}
-            className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
-            title="Copy Mermaid Code"
-          >
-            {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleExport}
-            className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
-            disabled={exporting || !svg}
-            title="Export PNG"
-          >
-            <Download className="size-4" />
-          </Button>
-        </div>
-
-        {!minimal && (
-          <>
             <div className="h-px bg-border mx-1 my-0.5" />
 
             <div className="flex flex-col gap-1">
@@ -234,15 +235,13 @@ export function MermaidRenderer({
                 <Minus className="size-4" />
               </Button>
             </div>
-          </>
-        )}
-      </div>
+          </div>
 
-      {!minimal && (
-        <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-background/50 backdrop-blur-sm rounded-full border text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-          <Maximize2 className="size-3" />
-          {(transform.scale * 100).toFixed(0)}%
-        </div>
+          <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-background/50 backdrop-blur-sm rounded-full border text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+            <Maximize2 className="size-3" />
+            {(transform.scale * 100).toFixed(0)}%
+          </div>
+        </>
       )}
     </div>
   )

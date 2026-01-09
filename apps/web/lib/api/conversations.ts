@@ -1,5 +1,4 @@
-import type { Conversation } from "@/components/conversation/conversation-selector"
-import type { ConversationDetail } from "@/types/chat"
+import type { Conversation, ConversationDetail } from "@/types/chat"
 
 export const conversationKeys = {
   all: ["conversations"] as const,

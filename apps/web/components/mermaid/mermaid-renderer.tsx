@@ -2,7 +2,15 @@
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import mermaid from "mermaid"
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
+import {
+  memo,
+  useDeferredValue,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import type { MermaidPlugin, MermaidPluginContext } from "./plugins/types"
 
 // ============================================================================
@@ -15,6 +23,39 @@ mermaid.initialize({
   securityLevel: "loose",
   fontFamily: "inherit",
 })
+
+// ============================================================================
+// SVG Processing Utility
+// ============================================================================
+
+/**
+ * Process rendered SVG to add data attributes for node selection.
+ * Extracted for clarity and potential future caching.
+ */
+function processSvgForNodeSelection(svgString: string): string {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(svgString, "image/svg+xml")
+
+  const nodes = doc.querySelectorAll("g.node[id]")
+  for (const node of nodes) {
+    const nodeId = node.getAttribute("id")
+    if (!nodeId) continue
+    const elements = node.querySelectorAll(".nodeLabel, foreignObject")
+    for (const el of elements) {
+      el.setAttribute("data-node-id", nodeId)
+    }
+  }
+
+  return new XMLSerializer().serializeToString(doc)
+}
+
+/**
+ * Clean up mermaid temporary render elements from DOM
+ */
+function cleanupMermaidElement(id: string): void {
+  const element = document.getElementById(id)
+  element?.remove()
+}
 
 // ============================================================================
 // Core Renderer
@@ -34,7 +75,7 @@ interface MermaidRendererProps {
   onFixError?: (error: string) => void
 }
 
-export function MermaidRenderer({
+export const MermaidRenderer = memo(function MermaidRenderer({
   code,
   className,
   plugins = [],
@@ -45,19 +86,24 @@ export function MermaidRenderer({
   onFixError,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const renderIdRef = useRef(0)
   const [svg, setSvg] = useState<string>("")
   const [lastValidSvg, setLastValidSvg] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
+
+  // Defer code updates during rapid changes (e.g., AI streaming)
+  const deferredCode = useDeferredValue(code)
+  const isStale = deferredCode !== code
 
   // Non-reactive callback for SVG changes
   const handleSvgChange = useEffectEvent((newSvg: string) => {
     onSvgChange?.(newSvg)
   })
 
-  // Render mermaid diagram
+  // Render mermaid diagram with deferred code
   useEffect(() => {
-    if (!code.trim()) {
+    if (!deferredCode.trim()) {
       setSvg("")
       setError(null)
       handleSvgChange("")
@@ -65,28 +111,20 @@ export function MermaidRenderer({
     }
 
     let cancelled = false
+    const currentRenderId = ++renderIdRef.current
+    const elementId = `mermaid-render-${currentRenderId}`
 
     const renderDiagram = async () => {
       setIsParsing(true)
       try {
-        const id = `mermaid-${Date.now()}`
-        const { svg: renderedSvg } = await mermaid.render(id, code)
+        const { svg: renderedSvg } = await mermaid.render(elementId, deferredCode)
         if (cancelled) return
-        const parser = new DOMParser()
-        const doc = parser.parseFromString(renderedSvg, "image/svg+xml")
-        // Add data attributes for node selection
-        doc.querySelectorAll("g.node[id]").forEach((node) => {
-          const nodeId = node.getAttribute("id")
-          if (!nodeId) return
-          node.querySelectorAll(".nodeLabel, foreignObject").forEach((el) => {
-            el.setAttribute("data-node-id", nodeId)
-          })
-        })
-        const serialized = new XMLSerializer().serializeToString(doc)
-        setSvg(serialized)
-        setLastValidSvg(serialized)
+
+        const processedSvg = processSvgForNodeSelection(renderedSvg)
+        setSvg(processedSvg)
+        setLastValidSvg(processedSvg)
         setError(null)
-        handleSvgChange(serialized)
+        handleSvgChange(processedSvg)
       } catch (err) {
         if (cancelled) return
         if (!isUpdating) {
@@ -97,6 +135,8 @@ export function MermaidRenderer({
         if (!cancelled) {
           setIsParsing(false)
         }
+        // Cleanup temporary mermaid element
+        cleanupMermaidElement(elementId)
       }
     }
 
@@ -104,19 +144,21 @@ export function MermaidRenderer({
 
     return () => {
       cancelled = true
+      cleanupMermaidElement(elementId)
     }
-  }, [code, isUpdating])
+  }, [deferredCode, isUpdating])
 
-  // Plugin context
+  // Plugin context - use deferredCode for stability during rapid updates
+  const displaySvg = svg || lastValidSvg
   const ctx: MermaidPluginContext = useMemo(
     () => ({
-      code,
-      svg: svg || lastValidSvg,
+      code: deferredCode,
+      svg: displaySvg,
       containerRef,
       isUpdating,
       isParsing,
     }),
-    [code, svg, lastValidSvg, isUpdating, isParsing]
+    [deferredCode, displaySvg, isUpdating, isParsing]
   )
 
   // Merge container props from plugins (must be before any conditional returns)
@@ -177,16 +219,18 @@ export function MermaidRenderer({
     )
   }
 
+  // Combine loading states: isUpdating (external), isParsing (internal), isStale (deferred)
+  const isLoading = isUpdating || isParsing || isStale
+
   // Core SVG container
   let svgContainer = (
     <div
       className={cn(
         "mermaid-container w-full h-full flex items-center justify-center p-4",
-        (isUpdating || isParsing) &&
-          "opacity-50 grayscale-[0.5] transition-[opacity,filter] duration-300"
+        isLoading && "opacity-50 grayscale-[0.5] transition-[opacity,filter] duration-300"
       )}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
-      dangerouslySetInnerHTML={{ __html: svg || lastValidSvg }}
+      dangerouslySetInnerHTML={{ __html: displaySvg }}
     />
   )
 
@@ -206,7 +250,7 @@ export function MermaidRenderer({
       {svgContainer}
 
       {/* Loading indicator */}
-      {showLoading && (isUpdating || isParsing) && (
+      {showLoading && isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/20 backdrop-blur-xs pointer-events-none animate-in fade-in duration-300">
           <div className="flex items-center gap-2.5 px-4 py-2 bg-background/90 rounded-full border shadow-sm border-border/50">
             <div className="size-2 rounded-full bg-primary animate-pulse" />
@@ -221,4 +265,4 @@ export function MermaidRenderer({
       {plugins.map((plugin) => plugin.renderControls?.(ctx))}
     </div>
   )
-}
+})

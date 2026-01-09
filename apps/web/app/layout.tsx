@@ -15,8 +15,6 @@ const fontMono = JetBrains_Mono({
   variable: "--font-mono",
 })
 
-const SIDEBAR_COOKIE_NAME = "sidebar_state"
-
 export default async function RootLayout({
   children,
 }: Readonly<{

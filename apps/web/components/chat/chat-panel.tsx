@@ -1,6 +1,4 @@
 "use client"
-import { useConversationsContext } from "@/components/conversation/conversations-context"
-import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import { useMermaidUpdates } from "@/hooks/use-mermaid-updates"
 import { convertToUIMessages } from "@/lib/utils/message"
 import { type PendingMessage, loadPendingMessage } from "@/lib/utils/pending-message"
@@ -16,7 +14,7 @@ import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport, type FileUIPart } from "ai"
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
@@ -29,6 +27,9 @@ interface ChatPanelProps {
   onSelectMermaidMessage: (id: string | null) => void
   inputText: string
   onInputTextChange: (text: string) => void
+  latestMermaidCode: string
+  setLatestMermaidCode: (code: string) => void
+  setIsMermaidUpdating: (updating: boolean) => void
 }
 
 export interface ChatPanelHandle {
@@ -44,12 +45,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     onSelectMermaidMessage,
     inputText,
     onInputTextChange,
+    latestMermaidCode,
+    setLatestMermaidCode,
+    setIsMermaidUpdating,
   },
   ref
 ) {
-  const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
-  const { refreshConversations } = useConversationsContext()
-
   // Load pending message from sessionStorage once on mount
   const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(() =>
     loadPendingMessage()
@@ -62,37 +63,26 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
-  // Use refs to always get latest values in callbacks
-  const modelRef = useRef(model)
-  const chartRef = useRef(latestMermaidCode)
-  const thinkingRef = useRef(thinking)
-  const webSearchRef = useRef(webSearch)
-  modelRef.current = model
-  chartRef.current = latestMermaidCode
-  thinkingRef.current = thinking
-  webSearchRef.current = webSearch
-
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
         prepareSendMessagesRequest: (options) => {
-          // Only send the new user message, server fetches history from DB
           const lastMessage = options.messages[options.messages.length - 1]
           return {
             ...options,
             body: {
-              currentChart: chartRef.current,
-              model: modelRef.current,
-              thinking: thinkingRef.current,
-              webSearch: webSearchRef.current,
+              currentChart: latestMermaidCode,
+              model,
+              thinking,
+              webSearch,
               conversationId,
               userMessage: lastMessage?.role === "user" ? lastMessage.parts : null,
             },
           }
         },
       }),
-    [conversationId]
+    [conversationId, model, latestMermaidCode, thinking, webSearch]
   )
 
   const initialUIMessages = useMemo(() => convertToUIMessages(initialMessages), [initialMessages])
@@ -106,9 +96,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       const toolInput = toolCall.input as UpdateChartToolInput | undefined
       if (typeof toolInput?.code !== "string") return
       setLatestMermaidCode(toolInput.code)
-    },
-    onFinish: () => {
-      refreshConversations()
     },
   })
 
@@ -141,7 +128,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   }, [pendingMessage, conversationId, status, sendMessage])
 
   // Handle mermaid diagram updates from messages via custom hook
-  useMermaidUpdates(messages)
+  useMermaidUpdates({
+    messages,
+    latestMermaidCode,
+    setLatestMermaidCode,
+    setIsMermaidUpdating,
+  })
 
   // Skip loading skeleton for new conversations with pending message
   if (isLoadingConversation && !pendingMessage) {

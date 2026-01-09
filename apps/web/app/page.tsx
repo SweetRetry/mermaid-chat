@@ -2,7 +2,7 @@
 
 import { ChatInput } from "@/components/chat/chat-input"
 import { ConversationCard } from "@/components/conversation/conversation-card"
-import { useConversationsContext } from "@/components/conversation/conversations-context"
+import { useConversations } from "@/hooks/use-conversations"
 
 import { type PendingMessage, savePendingMessage } from "@/lib/utils/pending-message"
 import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
@@ -14,19 +14,23 @@ import { useEffect, useState, useTransition } from "react"
 
 const EXAMPLES = [
   {
+    icon: "🍌",
     label: "User Login Flow",
     prompt: "Create a flowchart for a user login process with OAuth and email options",
   },
   {
+    icon: "📝",
     label: "API Sequence",
     prompt:
       "Generate a sequence diagram showing how a frontend app authenticates with a backend API",
   },
   {
+    icon: "🎓",
     label: "Project Timeline",
     prompt: "Show me a Gantt chart for a 2-week software release cycle",
   },
   {
+    icon: "⚡",
     label: "E-commerce Model",
     prompt: "Draw a class diagram for a basic E-commerce system with Orders, Products and Users",
   },
@@ -37,8 +41,7 @@ export default function Page() {
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
   const [model, setModel] = useState("seed1.8")
-  const { conversations, createConversation, deleteConversation, isLoading } =
-    useConversationsContext()
+  const { conversations, createConversation, deleteConversation, isLoading } = useConversations()
 
   // Prevent hydration mismatch by using a stable initial state
   const [isMounted, setIsMounted] = useState(false)
@@ -109,15 +112,11 @@ export default function Page() {
                   key={example.label}
                   variant="outline"
                   size="sm"
-                  className="rounded-full px-4 border-border/40 hover:bg-accent/50 transition-colors"
+                  className="rounded-full px-4 border-border/40 hover:bg-accent/50"
                   disabled={isPending}
                   onClick={() => handleExampleClick(example.prompt)}
                 >
-                  {example.label === "User Login Flow" && <span className="mr-1.5">🍌</span>}
-                  {example.label === "API Sequence" && <span className="mr-1.5">📝</span>}
-                  {example.label === "Project Timeline" && <span className="mr-1.5">🎓</span>}
-                  {example.label === "E-commerce Model" && <span className="mr-1.5">⚡</span>}
-                  <span>{example.label}</span>
+                  {example.icon} {example.label}
                 </Button>
               ))}
             </div>
@@ -127,11 +126,9 @@ export default function Page() {
         {/* Multi-step reveal for history to soften the entry */}
         {isMounted && hasHistory && (
           <section className="space-y-8 pb-32 animate-in fade-in slide-in-from-top-4 duration-1000">
-            <div className="flex items-center justify-between px-2 border-b border-border/50 pb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
-                最近的绘图
-              </h2>
-            </div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 border-b border-border/50 pb-3">
+              最近的绘图
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {isLoading
                 ? Array.from({ length: 3 }).map((_, i) => (

@@ -29,15 +29,13 @@ function getQueryClient() {
   return browserQueryClient
 }
 
-import { ConversationsProvider } from "@/components/conversation/conversations-context"
-
 export function Providers({ children }: { children: React.ReactNode }) {
   const queryClient = getQueryClient()
 
   return (
     <QueryClientProvider client={queryClient}>
       <NextThemesProvider attribute="class" defaultTheme="system" enableSystem enableColorScheme>
-        <ConversationsProvider>{children}</ConversationsProvider>
+        {children}
       </NextThemesProvider>
     </QueryClientProvider>
   )

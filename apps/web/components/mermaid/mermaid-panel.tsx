@@ -1,6 +1,5 @@
 "use client"
 
-import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import type { ConversationDetail } from "@/types/chat"
 import type { UpdateChartToolUIPart } from "@/types/tool"
 import { Button } from "@workspace/ui/components/button"
@@ -24,6 +23,8 @@ interface MermaidPanelProps {
   isLoadingConversation: boolean
   onAppendInputText: (text: string) => void
   onFixError?: (error: string) => void
+  latestMermaidCode: string
+  isMermaidUpdating: boolean
 }
 
 export function MermaidPanel({
@@ -34,8 +35,9 @@ export function MermaidPanel({
   isLoadingConversation,
   onAppendInputText,
   onFixError,
+  latestMermaidCode,
+  isMermaidUpdating,
 }: MermaidPanelProps) {
-  const { latestMermaidCode, isMermaidUpdating } = useMermaidContext()
 
   const plugins = useMemo(
     () => [

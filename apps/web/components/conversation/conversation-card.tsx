@@ -1,6 +1,7 @@
 "use client"
 
 import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
+import type { Conversation } from "@/types/chat"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import dayjs from "dayjs"
@@ -9,13 +10,6 @@ import { FileCode2, Trash2 } from "lucide-react"
 import { useMemo } from "react"
 
 dayjs.extend(relativeTime)
-
-export interface Conversation {
-  id: string
-  title: string
-  updatedAt: Date | string
-  latestChartCode: string | null
-}
 
 interface ConversationCardProps {
   conversation: Conversation

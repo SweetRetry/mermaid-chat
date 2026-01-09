@@ -44,7 +44,7 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
         className="size-8 rounded-lg"
         title="Copy Mermaid Code"
       >
-        {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+        {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
       </Button>
       <Button
         variant="ghost"

@@ -1,15 +1,24 @@
-import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import type { UpdateChartToolUIPart } from "@/types/tool"
 import type { UIMessage } from "@ai-sdk/react"
 import { useEffect, useRef } from "react"
+
+interface UseMermaidUpdatesOptions {
+  messages: UIMessage[]
+  latestMermaidCode: string
+  setLatestMermaidCode: (code: string) => void
+  setIsMermaidUpdating: (updating: boolean) => void
+}
 
 /**
  * Custom hook to monitor a stream of chat messages and extract
  * Mermaid diagram updates from tool calls.
  */
-export function useMermaidUpdates(messages: UIMessage[]) {
-  const { setLatestMermaidCode, setIsMermaidUpdating, latestMermaidCode } = useMermaidContext()
-
+export function useMermaidUpdates({
+  messages,
+  latestMermaidCode,
+  setLatestMermaidCode,
+  setIsMermaidUpdating,
+}: UseMermaidUpdatesOptions) {
   // Use ref to track current chart to avoid re-render cycles when reading currentChart
   const currentChartRef = useRef(latestMermaidCode)
   useEffect(() => {

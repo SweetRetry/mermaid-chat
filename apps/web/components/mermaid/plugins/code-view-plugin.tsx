@@ -44,7 +44,7 @@ function CodeViewControls({ ctx }: { ctx: MermaidPluginContext }) {
               className="absolute top-2 right-2 size-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur"
               title="Copy Code"
             >
-              {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
+              {copied ? <Check className="size-4 text-primary" /> : <Copy className="size-4" />}
             </Button>
             <pre className="whitespace-pre-wrap break-all">
               <code>{ctx.code}</code>

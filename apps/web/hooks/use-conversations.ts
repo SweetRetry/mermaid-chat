@@ -1,6 +1,4 @@
-"use client"
-
-import type { Conversation } from "@/components/conversation/conversation-selector"
+import type { Conversation } from "@/types/chat"
 import {
   conversationKeys,
   createConversation as createConversationApi,
@@ -8,28 +6,8 @@ import {
   fetchConversations,
 } from "@/lib/api/conversations"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type { ReactNode } from "react"
-import { createContext, useContext } from "react"
 
-interface ConversationsContextValue {
-  conversations: Conversation[]
-  isLoading: boolean
-  refreshConversations: () => Promise<void>
-  createConversation: (title?: string) => Promise<string | null>
-  deleteConversation: (id: string) => Promise<void>
-}
-
-const ConversationsContext = createContext<ConversationsContextValue | null>(null)
-
-export function useConversationsContext() {
-  const context = useContext(ConversationsContext)
-  if (!context) {
-    throw new Error("useConversationsContext must be used within ConversationsProvider")
-  }
-  return context
-}
-
-export function ConversationsProvider({ children }: { children: ReactNode }) {
+export function useConversations() {
   const queryClient = useQueryClient()
 
   const { data: conversations = [], isLoading } = useQuery({
@@ -52,14 +30,9 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData<Conversation[]>(conversationKeys.list(), (old) =>
         old ? old.filter((c) => c.id !== deletedId) : []
       )
-      // Also invalidate the detail query for this conversation
       queryClient.removeQueries({ queryKey: conversationKeys.detail(deletedId) })
     },
   })
-
-  const refreshConversations = async () => {
-    await queryClient.invalidateQueries({ queryKey: conversationKeys.list() })
-  }
 
   const createConversation = async (title?: string): Promise<string | null> => {
     try {
@@ -74,17 +47,10 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
     await deleteMutation.mutateAsync(id)
   }
 
-  return (
-    <ConversationsContext.Provider
-      value={{
-        conversations,
-        isLoading,
-        refreshConversations,
-        createConversation,
-        deleteConversation,
-      }}
-    >
-      {children}
-    </ConversationsContext.Provider>
-  )
+  return {
+    conversations,
+    isLoading,
+    createConversation,
+    deleteConversation,
+  }
 }

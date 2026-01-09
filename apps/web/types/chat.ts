@@ -14,3 +14,10 @@ export interface ConversationDetail {
   messages: StoredMessage[]
   latestChart: { mermaidCode: string } | null
 }
+
+export interface Conversation {
+  id: string
+  title: string
+  updatedAt: Date | string
+  latestChartCode: string | null
+}

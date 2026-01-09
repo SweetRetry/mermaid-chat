@@ -5,7 +5,7 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
         "DATABASE_URL",
         "DIRECT_URL",
@@ -15,7 +15,8 @@
         "PGPASSWORD",
         "PGDATABASE",
         "POSTGRES_USER",
-        "NEON_PROJECT_ID"
+        "NEON_PROJECT_ID",
+        "ARK_API_KEY"
       ]
     },
     "lint": {

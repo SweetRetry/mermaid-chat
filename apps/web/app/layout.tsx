@@ -1,5 +1,7 @@
 import { Inter, JetBrains_Mono } from "next/font/google"
 import { cookies } from "next/headers"
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import "@workspace/ui/globals.css"
 
@@ -35,6 +37,8 @@ export default async function RootLayout({
         <Providers>
           <SidebarLayout defaultOpen={defaultOpen}>{children}</SidebarLayout>
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

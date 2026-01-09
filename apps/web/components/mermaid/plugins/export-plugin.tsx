@@ -28,7 +28,7 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
 
   return (
     <div
-      className="absolute top-4 right-14 flex flex-row gap-1 p-1 bg-background/80 backdrop-blur-md rounded-xl border shadow-sm z-20"
+      className="absolute top-4 right-16 flex flex-row gap-1 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-20"
       onPointerDown={(e) => e.stopPropagation()}
     >
       <Button

@@ -1,8 +1,15 @@
 "use client"
 
 import type { Conversation } from "@/components/conversation/conversation-selector"
+import {
+  conversationKeys,
+  createConversation as createConversationApi,
+  deleteConversation as deleteConversationApi,
+  fetchConversations,
+} from "@/lib/api/conversations"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
+import { createContext, useContext, useState } from "react"
 
 export interface PendingMessage {
   text: string
@@ -31,54 +38,50 @@ export function useConversationsContext() {
 }
 
 export function ConversationsProvider({ children }: { children: ReactNode }) {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null)
-  const latestRequestRef = useRef(0)
 
-  const refreshConversations = useCallback(async () => {
-    const requestId = ++latestRequestRef.current
-    setIsLoading(true)
+  const { data: conversations = [], isLoading } = useQuery({
+    queryKey: conversationKeys.list(),
+    queryFn: fetchConversations,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: createConversationApi,
+    onSuccess: (newConversation) => {
+      queryClient.setQueryData<Conversation[]>(conversationKeys.list(), (old) =>
+        old ? [newConversation, ...old] : [newConversation]
+      )
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteConversationApi,
+    onSuccess: (_, deletedId) => {
+      queryClient.setQueryData<Conversation[]>(conversationKeys.list(), (old) =>
+        old ? old.filter((c) => c.id !== deletedId) : []
+      )
+      // Also invalidate the detail query for this conversation
+      queryClient.removeQueries({ queryKey: conversationKeys.detail(deletedId) })
+    },
+  })
+
+  const refreshConversations = async () => {
+    await queryClient.invalidateQueries({ queryKey: conversationKeys.list() })
+  }
+
+  const createConversation = async (title?: string): Promise<string | null> => {
     try {
-      const res = await fetch("/api/conversations")
-      if (!res.ok) return
-      const data = await res.json()
-      if (latestRequestRef.current !== requestId) return
-      setConversations(data.conversations ?? [])
+      const result = await createMutation.mutateAsync(title)
+      return result.id
     } catch {
-      // Ignore transient fetch errors; UI remains unchanged.
-    } finally {
-      if (latestRequestRef.current === requestId) {
-        setIsLoading(false)
-      }
+      return null
     }
-  }, [])
+  }
 
-  const createConversation = useCallback(async (title?: string) => {
-    try {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        body: title ? JSON.stringify({ title }) : undefined,
-      })
-      if (!res.ok) return null
-      const data: Conversation = await res.json()
-      setConversations((prev) => [data, ...prev])
-      return data.id
-    } catch {
-      // Ignore transient create errors; UI remains unchanged.
-    }
-    return null
-  }, [])
-
-  const deleteConversation = useCallback(async (id: string) => {
-    const res = await fetch(`/api/conversations/${id}`, { method: "DELETE" })
-    if (!res.ok) return
-    setConversations((prev) => prev.filter((c) => c.id !== id))
-  }, [])
-
-  useEffect(() => {
-    refreshConversations()
-  }, [refreshConversations])
+  const deleteConversation = async (id: string): Promise<void> => {
+    await deleteMutation.mutateAsync(id)
+  }
 
   return (
     <ConversationsContext.Provider

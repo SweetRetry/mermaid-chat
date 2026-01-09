@@ -213,7 +213,7 @@ export function ChatPanel({
             onInputTextChange("")
           }}
           disabled={!conversationId}
-          status={status}
+          status={status === "submitted" ? "streaming" : status}
           model={model}
           onModelChange={setModel}
         />

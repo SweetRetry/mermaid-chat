@@ -12,7 +12,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import type { Layout } from "react-resizable-panels"
 
 interface AppShellProps {
@@ -47,14 +47,6 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
     },
     [groupId]
   )
-
-  // Reset state when conversation changes
-  useEffect(() => {
-    setSelectedMermaidMessageId(null)
-    setInputText("")
-    setStreamingMermaidCode(null)
-    setIsMermaidUpdating(false)
-  }, [conversationId])
 
   const handleAppendInputText = useCallback((text: string) => {
     const next = text.trim()
@@ -98,12 +90,7 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
           defaultLayout={defaultLayout}
           onLayoutChange={handleLayoutChange}
         >
-          <ResizablePanel
-            id="preview"
-            defaultSize={defaultLayout?.[0] ?? 70}
-            minSize="50%"
-            className="bg-muted/5"
-          >
+          <ResizablePanel id="preview" defaultSize={defaultLayout?.[0] ?? 70} minSize="50%">
             <MermaidPanel
               className="max-h-screen"
               conversationDetail={conversationDetail}
@@ -117,7 +104,7 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
             />
           </ResizablePanel>
 
-          <ResizableHandle className="w-px bg-border/40 hover:bg-primary/40 transition-colors" />
+          <ResizableHandle />
 
           <ResizablePanel
             id="chat"

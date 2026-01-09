@@ -77,12 +77,11 @@ export default function Page() {
 
   return (
     <main className="min-h-screen bg-background overflow-auto">
-      <div className="max-w-6xl mx-auto px-6 sm:px-8">
+      <div className="container mx-auto px-6 sm:px-8">
         {/* Fixed Padding Hero - Stable regardless of history state */}
         <section
           className={cn(
-            "flex flex-col justify-center space-y-10 max-w-4xl mx-auto transition-[padding] duration-700 ease-in-out",
-            hasHistory ? "pt-20 pb-12" : "pt-[25vh] pb-24"
+            "flex flex-col justify-center space-y-10 max-w-4xl pt-[20vh] pb-12 mx-auto transition-[padding] duration-700 ease-in-out"
           )}
         >
           <div className="flex flex-col items-center text-center space-y-4">
@@ -126,10 +125,10 @@ export default function Page() {
         {/* Multi-step reveal for history to soften the entry */}
         {isMounted && hasHistory && (
           <section className="space-y-8 pb-32 animate-in fade-in slide-in-from-top-4 duration-1000">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/50 border-b border-border/50 pb-3">
+            <h2 className="font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-3">
               最近的绘图
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {isLoading
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-40 w-full rounded-xl bg-muted/40" />
@@ -140,7 +139,6 @@ export default function Page() {
                       conversation={conversation}
                       onSelect={(id) => router.push(`/chat/${id}`)}
                       onDelete={deleteConversation}
-                      className="hover:shadow-md transition-shadow duration-300"
                     />
                   ))}
             </div>

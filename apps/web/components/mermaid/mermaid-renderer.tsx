@@ -7,6 +7,7 @@ import {
   useDeferredValue,
   useEffect,
   useEffectEvent,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -50,11 +51,31 @@ function processSvgForNodeSelection(svgString: string): string {
 }
 
 /**
+ * Get or create a persistent hidden container for mermaid rendering.
+ * This prevents "Cannot read properties of null" errors when components unmount
+ * during async mermaid.render() operations.
+ */
+function getMermaidRenderContainer(): HTMLDivElement {
+  const containerId = "__mermaid_render_container__"
+  let container = document.getElementById(containerId) as HTMLDivElement | null
+  if (!container) {
+    container = document.createElement("div")
+    container.id = containerId
+    container.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;"
+    document.body.appendChild(container)
+  }
+  return container
+}
+
+/**
  * Clean up mermaid temporary render elements from DOM
  */
 function cleanupMermaidElement(id: string): void {
-  const element = document.getElementById(id)
-  element?.remove()
+  // Use requestAnimationFrame to delay cleanup, allowing mermaid to finish
+  requestAnimationFrame(() => {
+    const element = document.getElementById(id)
+    element?.remove()
+  })
 }
 
 // ============================================================================
@@ -86,7 +107,7 @@ export const MermaidRenderer = memo(function MermaidRenderer({
   onFixError,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const renderIdRef = useRef(0)
+  const instanceId = useId()
   const [svg, setSvg] = useState<string>("")
   const [lastValidSvg, setLastValidSvg] = useState<string>("")
   const [error, setError] = useState<string | null>(null)
@@ -111,12 +132,18 @@ export const MermaidRenderer = memo(function MermaidRenderer({
     }
 
     let cancelled = false
-    const currentRenderId = ++renderIdRef.current
-    const elementId = `mermaid-render-${currentRenderId}`
+    // Sanitize instanceId (remove colons) for valid DOM ID
+    const elementId = `mermaid${instanceId.replace(/:/g, "")}`
 
     const renderDiagram = async () => {
       setIsParsing(true)
       try {
+        // Create temporary element in persistent container to avoid unmount issues
+        const container = getMermaidRenderContainer()
+        const tempEl = document.createElement("div")
+        tempEl.id = elementId
+        container.appendChild(tempEl)
+
         const { svg: renderedSvg } = await mermaid.render(elementId, deferredCode)
         if (cancelled) return
 
@@ -193,6 +220,11 @@ export const MermaidRenderer = memo(function MermaidRenderer({
 
   // Early returns after all hooks
   if (!code.trim()) {
+    return null
+  }
+
+  // When error occurs and showError is false, return null if no valid SVG to display
+  if (error && !showError && !displaySvg) {
     return null
   }
 

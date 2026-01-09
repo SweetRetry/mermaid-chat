@@ -3,7 +3,7 @@
 import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
 import type { Conversation } from "@/types/chat"
 import { Button } from "@workspace/ui/components/button"
-import { cn } from "@workspace/ui/lib/utils"
+import { Card, CardContent, CardFooter } from "@workspace/ui/components/card"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import { FileCode2, Trash2 } from "lucide-react"
@@ -16,7 +16,6 @@ interface ConversationCardProps {
   isActive?: boolean
   onSelect: (id: string) => void
   onDelete: (id: string) => void
-  className?: string
   showPreview?: boolean
 }
 
@@ -25,7 +24,7 @@ export function ConversationCard({
   isActive,
   onSelect,
   onDelete,
-  className,
+
   showPreview = true,
 }: ConversationCardProps) {
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -38,26 +37,19 @@ export function ConversationCard({
   }, [conversation.id])
 
   return (
-    <button
-      type="button"
+    <Card
       onClick={() => onSelect(conversation.id)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
           onSelect(conversation.id)
         }
       }}
-      className={cn(
-        "group relative w-full rounded-2xl border transition-all duration-300 overflow-hidden text-left focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none",
-        isActive
-          ? "bg-accent/40 border-primary/20 shadow-sm ring-1 ring-primary/10"
-          : "bg-background border-border/50 hover:border-primary/20 hover:bg-accent/20",
-        className
-      )}
+      className="p-0 overflow-hidden hover:shadow-md transition-shadow duration-300"
     >
-      {/* Card Header/Preview */}
-      <div className="relative aspect-video overflow-hidden bg-muted/30">
+      <CardContent className="relative p-0 aspect-video overflow-hidden">
         {conversation.latestChartCode && showPreview ? (
-          <div className="absolute inset-0 flex items-center justify-center p-3 bg-background/20 backdrop-blur-[2px]">
+          <div className="absolute inset-0 flex items-center justify-center">
             <MermaidRenderer
               code={conversation.latestChartCode}
               showLoading={false}
@@ -72,13 +64,12 @@ export function ConversationCard({
           >
             <img
               alt="Conversation placeholder"
-              className="aspect-video w-full object-cover brightness-[0.8] grayscale-[0.3] group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500"
+              className="w-full h-full object-cover brightness-[0.8] grayscale-[0.3] group-hover:grayscale-0 group-hover:brightness-100 transition-all duration-500"
               src="https://images.unsplash.com/photo-1604076850742-4c7221f3101b?q=80&w=1887&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
             />
           </div>
         )}
 
-        {/* Delete Button Overlay */}
         <Button
           variant="ghost"
           size="icon"
@@ -88,17 +79,16 @@ export function ConversationCard({
         >
           <Trash2 className="size-3.5" />
         </Button>
-      </div>
+      </CardContent>
 
-      {/* Card Content */}
-      <div className="p-3.5 space-y-1.5">
-        <div className="flex items-center gap-2">
+      <CardFooter className="flex-col items-start gap-1.5 p-3.5">
+        <div className="flex items-center gap-2 w-full">
           {conversation.latestChartCode && <FileCode2 className="size-3.5 text-primary shrink-0" />}
           <span className="font-bold text-sm truncate leading-tight flex-1">
             {conversation.title || "Untitled Conversation"}
           </span>
         </div>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between w-full">
           <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
             {dayjs(conversation.updatedAt).fromNow()}
           </span>
@@ -106,7 +96,7 @@ export function ConversationCard({
             <div className="size-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />
           )}
         </div>
-      </div>
-    </button>
+      </CardFooter>
+    </Card>
   )
 }

@@ -217,6 +217,14 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
       toolWarnings,
     } = prepareTools({ tools, toolChoice })
 
+    // Convert boolean thinking option to Volcengine API format
+    const thinkingConfig =
+      options.thinking === true
+        ? { type: "enabled" as const }
+        : options.thinking === false
+          ? { type: "disabled" as const }
+          : undefined
+
     return {
       args: removeUndefinedEntries({
         model: this.modelId,
@@ -229,7 +237,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
         tools: volcengineTools,
         tool_choice: volcengineToolChoice,
         parallel_tool_calls: options.parallelToolCalls,
-        thinking: options.thinking,
+        thinking: thinkingConfig,
       }),
       warnings: [...warnings, ...toolWarnings],
     }

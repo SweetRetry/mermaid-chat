@@ -7,6 +7,7 @@ export async function GET() {
       id: true,
       title: true,
       updatedAt: true,
+      latestChartCode: true,
     },
     orderBy: {
       updatedAt: "desc",

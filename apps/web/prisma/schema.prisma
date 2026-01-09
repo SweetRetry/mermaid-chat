@@ -9,10 +9,11 @@ datasource db {
 
 /// Conversation represents a chat session with the AI.
 model Conversation {
-  id        String   @id @default(uuid())
-  title     String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id              String   @id @default(uuid())
+  title           String
+  latestChartCode String?  @map("latest_chart_code")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
   messages Message[]
 

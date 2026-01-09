@@ -1,8 +1,7 @@
 "use client"
 
 import type { Conversation } from "@/components/conversation/conversation-selector"
-import { useConversations } from "@/hooks/use-conversations"
-import { useChatStore } from "@/lib/store/chat-store"
+import { useConversationsContext } from "@/components/conversation/conversations-context"
 import { Button } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
@@ -39,8 +38,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname()
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
-  const deleteConversation = useChatStore((state) => state.deleteConversation)
-  const { conversations, isLoading: isLoadingConversations } = useConversations()
+  const {
+    conversations,
+    isLoading: isLoadingConversations,
+    deleteConversation,
+  } = useConversationsContext()
 
   const conversationId = useMemo(() => {
     const match = pathname.match(/^\/chat\/([^/]+)/)

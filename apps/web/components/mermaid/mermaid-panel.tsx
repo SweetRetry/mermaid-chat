@@ -1,20 +1,65 @@
 "use client"
 
-import { useChatStore } from "@/lib/store/chat-store"
+import type { ConversationDetail } from "@/types/chat"
+import type { UpdateChartToolUIPart } from "@/types/tool"
+import { useMermaidContext } from "@/components/mermaid/mermaid-context"
+import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
+import { useMemo } from "react"
 import { MermaidEmptyState } from "./mermaid-empty-state"
-import { MermaidRenderer } from "./mermaid-renderer"
+import {
+  MermaidRenderer,
+  createTransformPlugin,
+  createExportPlugin,
+  createCodeViewPlugin,
+  createNodeSelectionPlugin,
+} from "./mermaid-renderer"
 
 interface MermaidPanelProps {
   className?: string
+  conversationDetail: ConversationDetail | null
+  selectedMermaidMessageId: string | null
+  onSelectedMermaidMessageIdChange: (id: string | null) => void
+  isLoadingConversation: boolean
+  onAppendInputText: (text: string) => void
 }
 
-export function MermaidPanel({ className }: MermaidPanelProps) {
-  const code = useChatStore((state) => state.mermaidCode)
-  const appendInputText = useChatStore((state) => state.appendInputText)
-  const isUpdating = useChatStore((state) => state.isMermaidUpdating)
-  const isLoadingConversation = useChatStore((state) => state.isLoadingConversation)
+export function MermaidPanel({
+  className,
+  conversationDetail,
+  selectedMermaidMessageId,
+  onSelectedMermaidMessageIdChange,
+  isLoadingConversation,
+  onAppendInputText,
+}: MermaidPanelProps) {
+  const { latestMermaidCode, isMermaidUpdating } = useMermaidContext()
+
+  const plugins = useMemo(
+    () => [
+      createTransformPlugin(),
+      createExportPlugin(),
+      createCodeViewPlugin(),
+      createNodeSelectionPlugin({ onNodeSelect: onAppendInputText }),
+    ],
+    [onAppendInputText]
+  )
+
+  const selectedMessage = selectedMermaidMessageId
+    ? conversationDetail?.messages.find((msg) => msg.id === selectedMermaidMessageId)
+    : undefined
+
+  const selectedPart = selectedMessage?.parts?.find(
+    (part) => part.type === "tool-update_chart"
+  ) as UpdateChartToolUIPart | undefined
+
+  const selectedCode =
+    selectedPart?.state === "output-available" ? selectedPart.output?.code : selectedPart?.input?.code
+
+  const viewCode = selectedCode ?? latestMermaidCode
+  const isViewingOldVersion = Boolean(
+    selectedMermaidMessageId && viewCode && viewCode !== latestMermaidCode
+  )
 
   if (isLoadingConversation) {
     return (
@@ -32,13 +77,27 @@ export function MermaidPanel({ className }: MermaidPanelProps) {
 
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      {code ? (
-        <MermaidRenderer
-          code={code}
-          className="h-full"
-          onNodeSelect={appendInputText}
-          isUpdating={isUpdating}
-        />
+      {viewCode ? (
+        <div className="relative h-full">
+          <MermaidRenderer
+            code={viewCode}
+            className="h-full"
+            plugins={plugins}
+            isUpdating={isMermaidUpdating}
+          />
+          {isViewingOldVersion && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+              <Button
+                variant="default"
+                size="sm"
+                className="shadow-lg"
+                onClick={() => onSelectedMermaidMessageIdChange(null)}
+              >
+                Back to latest
+              </Button>
+            </div>
+          )}
+        </div>
       ) : (
         <MermaidEmptyState />
       )}

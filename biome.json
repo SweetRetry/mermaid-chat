@@ -36,6 +36,7 @@
         "noArrayIndexKey": "info"
       },
       "complexity": {
+        "noUselessFragments": "info",
         "noForEach": "off"
       }
     }

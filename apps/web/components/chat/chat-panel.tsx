@@ -1,8 +1,10 @@
 "use client"
-import { useChatStore } from "@/lib/store/chat-store"
+import { useConversationsContext } from "@/components/conversation/conversations-context"
+import { useMermaidContext } from "@/components/mermaid/mermaid-context"
+import { useMermaidUpdates } from "@/hooks/use-mermaid-updates"
 import { convertToUIMessages, getMessageContent } from "@/lib/utils/message"
-import type { StoredMessage } from "@/types/chat"
-import type { UpdateChartToolInput, UpdateChartToolUIPart } from "@/types/tool"
+import type { ConversationDetail, StoredMessage } from "@/types/chat"
+import type { UpdateChartToolInput } from "@/types/tool"
 import { useChat } from "@ai-sdk/react"
 import {
   Conversation,
@@ -14,7 +16,6 @@ import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport } from "ai"
 import { MessageSquare } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useShallow } from "zustand/react/shallow"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
@@ -23,26 +24,28 @@ interface ChatPanelProps {
   className?: string
   conversationId?: string
   initialPrompt?: string
+  conversationDetail: ConversationDetail | null
+  isLoadingConversation: boolean
+  onSelectMermaidMessage: (id: string | null) => void
+  inputText: string
+  onInputTextChange: (text: string) => void
 }
 
-export function ChatPanel({ className, conversationId, initialPrompt }: ChatPanelProps) {
+export function ChatPanel({
+  className,
+  conversationId,
+  initialPrompt,
+  conversationDetail,
+  isLoadingConversation,
+  onSelectMermaidMessage,
+  inputText,
+  onInputTextChange,
+}: ChatPanelProps) {
   const [model, setModel] = useState("deepseek-chat")
 
-  // Batch select state values with shallow comparison to reduce re-renders
-  const { input, currentChart, conversationDetail, isLoadingConversation } = useChatStore(
-    useShallow((state) => ({
-      input: state.inputText,
-      currentChart: state.mermaidCode,
-      conversationDetail: state.conversationDetail,
-      isLoadingConversation: state.isLoadingConversation,
-    }))
-  )
+  const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
 
-  // Select actions separately (they don't change, so no shallow needed)
-  const setInput = useChatStore((state) => state.setInputText)
-  const onChartUpdate = useChatStore((state) => state.setMermaidCode)
-  const setIsMermaidUpdating = useChatStore((state) => state.setIsMermaidUpdating)
-  const onConversationUpdate = useChatStore((state) => state.fetchConversations)
+  const { refreshConversations } = useConversationsContext()
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -50,7 +53,7 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { currentChart, model, conversationId },
+        body: { currentChart: latestMermaidCode, model, conversationId },
         prepareSendMessagesRequest: (options) => {
           const lastMessage = options.messages[options.messages.length - 1]
           const query = lastMessage ? getMessageContent(lastMessage) : ""
@@ -63,7 +66,7 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
           }
         },
       }),
-    [currentChart, model, conversationId]
+    [latestMermaidCode, model, conversationId]
   )
 
   const initialUIMessages = useMemo(() => convertToUIMessages(initialMessages), [initialMessages])
@@ -76,10 +79,10 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
       if (toolCall.toolName !== "update_chart" || toolCall.dynamic) return
       const toolInput = toolCall.input as UpdateChartToolInput | undefined
       if (typeof toolInput?.code !== "string") return
-      onChartUpdate(toolInput.code)
+      setLatestMermaidCode(toolInput.code)
     },
     onFinish: () => {
-      onConversationUpdate()
+      refreshConversations()
     },
   })
 
@@ -101,42 +104,8 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
     sendMessage({ text: initialPrompt })
   }, [initialPrompt, conversationId, status]) // Intentionally exclude sendMessage to prevent re-triggering
 
-  // Use ref to track current chart without causing re-renders
-  const currentChartRef = useRef(currentChart)
-  currentChartRef.current = currentChart
-
-  useEffect(() => {
-    if (messages.length === 0) {
-      setIsMermaidUpdating(false)
-      return
-    }
-
-    let isUpdating = false
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i]
-      if (!msg || msg.role !== "assistant") continue
-
-      const parts = msg.parts || []
-      const updatePart = parts.find((p) => p.type === "tool-update_chart") as
-        | UpdateChartToolUIPart
-        | undefined
-
-      if (updatePart) {
-        const isStreaming = updatePart.state !== "output-available"
-        const code = isStreaming ? updatePart.input?.code : updatePart.output?.code
-
-        if (isStreaming) {
-          isUpdating = true
-        }
-
-        if (code && code !== currentChartRef.current) {
-          onChartUpdate(code)
-        }
-        break
-      }
-    }
-    setIsMermaidUpdating(isUpdating)
-  }, [messages, onChartUpdate, setIsMermaidUpdating])
+  // Handle mermaid diagram updates from messages via custom hook
+  useMermaidUpdates(messages)
 
   if (!conversationId) {
     return (
@@ -186,21 +155,27 @@ export function ChatPanel({ className, conversationId, initialPrompt }: ChatPane
           {messages.length === 0 ? (
             <ChatEmptyState />
           ) : (
-            messages.map((message) => <ChatMessage key={message.id} message={message} />)
+            messages.map((message) => (
+              <ChatMessage
+                key={message.id}
+                message={message}
+                onSelectMermaidMessage={onSelectMermaidMessage}
+              />
+            ))
           )}
         </ConversationContent>
         <ConversationScrollButton className="bottom-24" />
       </Conversation>
       <div className="p-4">
         <ChatInput
-          input={input}
-          onInputChange={setInput}
+          input={inputText}
+          onInputChange={onInputTextChange}
           onSubmit={(text) => {
             if (!conversationId) return
             sendMessage({ text })
-            setInput("")
+            onInputTextChange("")
           }}
-          disabled={!input.trim() || !conversationId}
+          disabled={!inputText.trim() || !conversationId}
           model={model}
           onModelChange={setModel}
         />

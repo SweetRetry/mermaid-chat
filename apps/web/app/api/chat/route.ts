@@ -214,6 +214,18 @@ export async function POST(req: Request) {
         }
       }
 
+      // Extract latest chart code from tool results
+      let latestChartCode: string | undefined
+      if (toolResults) {
+        const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
+        if (chartResult && "output" in chartResult) {
+          const output = chartResult.output as { code?: string }
+          if (output?.code) {
+            latestChartCode = output.code
+          }
+        }
+      }
+
       // Use transaction to batch all database operations
       await prisma.$transaction(async (tx) => {
         // Check if this is the first message and update title
@@ -245,10 +257,13 @@ export async function POST(req: Request) {
           ],
         })
 
-        // Update conversation timestamp
+        // Update conversation timestamp and latestChartCode if available
         await tx.conversation.update({
           where: { id: conversationId },
-          data: { updatedAt: new Date() },
+          data: {
+            updatedAt: new Date(),
+            ...(latestChartCode && { latestChartCode }),
+          },
         })
       })
     },

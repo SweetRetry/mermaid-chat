@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google"
+import { Inter, JetBrains_Mono } from "next/font/google"
 import { cookies } from "next/headers"
 
 import "@workspace/ui/globals.css"
@@ -6,12 +6,12 @@ import "@workspace/ui/globals.css"
 import { SidebarLayout } from "@/components/layout/sidebar-layout"
 import { Providers } from "@/components/providers"
 
-const fontSans = Geist({
+const fontSans = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 })
 
-const fontMono = Geist_Mono({
+const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
@@ -28,7 +28,7 @@ export default async function RootLayout({
   const defaultOpen = sidebarState !== "false"
 
   return (
-    <html lang="en" suppressHydrationWarning className="w-full h-full">
+    <html lang="zh-CN" suppressHydrationWarning className="w-full h-full">
       <body
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased w-full h-full`}
       >

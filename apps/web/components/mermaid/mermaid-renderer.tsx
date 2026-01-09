@@ -1,30 +1,36 @@
 "use client"
 
-import { useDiagramTransform } from "@/hooks/use-diagram-transform"
-import { useNodeSelection } from "@/hooks/use-node-selection"
-import { exportSvgToPng } from "@/lib/utils/svg-export"
-import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { Check, Code, Copy, Download, Maximize2, Minus, Plus, RotateCcw } from "lucide-react"
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog"
 import mermaid from "mermaid"
-import { useEffect, useRef, useState } from "react"
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef, useState } from "react"
 
-interface MermaidRendererProps {
+// ============================================================================
+// Plugin System Types
+// ============================================================================
+
+export interface MermaidPluginContext {
   code: string
-  className?: string
-  onSvgChange?: (svg: string) => void
-  onNodeSelect?: (label: string) => void
-  minimal?: boolean
-  isUpdating?: boolean
+  svg: string
+  containerRef: RefObject<HTMLDivElement | null>
+  isUpdating: boolean
+  isParsing: boolean
 }
+
+export interface MermaidPlugin {
+  name: string
+  /** Render overlay controls (e.g., zoom buttons, export) */
+  renderControls?: (ctx: MermaidPluginContext) => ReactNode
+  /** Wrap the SVG container (e.g., add pan/zoom transform) */
+  wrapContainer?: (children: ReactNode, ctx: MermaidPluginContext) => ReactNode
+  /** Container props to merge (e.g., event handlers, styles) */
+  getContainerProps?: (ctx: MermaidPluginContext) => React.HTMLAttributes<HTMLDivElement>
+  /** Called after SVG render */
+  onRender?: (ctx: MermaidPluginContext) => void
+}
+
+// ============================================================================
+// Mermaid Initialization
+// ============================================================================
 
 mermaid.initialize({
   startOnLoad: false,
@@ -33,13 +39,30 @@ mermaid.initialize({
   fontFamily: "inherit",
 })
 
+// ============================================================================
+// Core Renderer
+// ============================================================================
+
+interface MermaidRendererProps {
+  code: string
+  className?: string
+  plugins?: MermaidPlugin[]
+  onSvgChange?: (svg: string) => void
+  isUpdating?: boolean
+  /** Show loading indicator */
+  showLoading?: boolean
+  /** Show error state */
+  showError?: boolean
+}
+
 export function MermaidRenderer({
   code,
   className,
+  plugins = [],
   onSvgChange,
-  onNodeSelect,
-  minimal = false,
   isUpdating = false,
+  showLoading = true,
+  showError = true,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [svg, setSvg] = useState<string>("")
@@ -47,28 +70,7 @@ export function MermaidRenderer({
   const [error, setError] = useState<string | null>(null)
   const [isParsing, setIsParsing] = useState(false)
 
-  const { transform, zoomIn, zoomOut, reset, setTransform } = useDiagramTransform(containerRef)
-  const { handleNodeSelect } = useNodeSelection({ containerRef, svg, onNodeSelect })
-
-  const [copied, setCopied] = useState(false)
-  const [exporting, setExporting] = useState(false)
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleExport = async () => {
-    if (!svg) return
-    setExporting(true)
-    try {
-      await exportSvgToPng(svg)
-    } finally {
-      setExporting(false)
-    }
-  }
-
+  // Render mermaid diagram
   useEffect(() => {
     if (!code.trim()) {
       setSvg("")
@@ -84,6 +86,7 @@ export function MermaidRenderer({
         const { svg: renderedSvg } = await mermaid.render(id, code)
         const parser = new DOMParser()
         const doc = parser.parseFromString(renderedSvg, "image/svg+xml")
+        // Add data attributes for node selection
         doc.querySelectorAll("g.node[id]").forEach((node) => {
           const nodeId = node.getAttribute("id")
           if (!nodeId) return
@@ -95,11 +98,8 @@ export function MermaidRenderer({
         setSvg(serialized)
         setLastValidSvg(serialized)
         setError(null)
-        setTransform({ x: 0, y: 0, scale: 1 })
         onSvgChange?.(serialized)
       } catch (err) {
-        // When streaming or parsing fails, we keep the previous valid SVG
-        // but can optionally show an error if we're not currently updating
         if (!isUpdating) {
           setError(err instanceof Error ? err.message : "Failed to render diagram")
         }
@@ -110,13 +110,30 @@ export function MermaidRenderer({
     }
 
     renderDiagram()
-  }, [code, onSvgChange, setTransform])
+  }, [code, onSvgChange, isUpdating])
+
+  // Plugin context
+  const ctx: MermaidPluginContext = {
+    code,
+    svg: svg || lastValidSvg,
+    containerRef,
+    isUpdating,
+    isParsing,
+  }
+
+  // Notify plugins on render
+  useEffect(() => {
+    if (svg) {
+      plugins.forEach((plugin) => plugin.onRender?.(ctx))
+    }
+  }, [svg, plugins])
 
   if (!code.trim()) {
     return null
   }
 
-  if (error && !minimal) {
+  // Error state
+  if (error && showError) {
     return (
       <div className={cn("flex items-center justify-center h-full p-4", className)}>
         <div className="text-destructive text-sm bg-destructive/10 p-4 rounded-md max-w-md">
@@ -127,35 +144,59 @@ export function MermaidRenderer({
     )
   }
 
+  // Merge container props from plugins (avoid spread in accumulator for performance)
+  const mergedContainerProps = useMemo(() => {
+    const classNames: (string | undefined)[] = []
+    const styles: React.CSSProperties[] = []
+    const otherProps: Record<string, unknown> = {}
+
+    for (const plugin of plugins) {
+      const pluginProps = plugin.getContainerProps?.(ctx)
+      if (!pluginProps) continue
+
+      const { className, style, ...rest } = pluginProps
+      if (className) classNames.push(className)
+      if (style) styles.push(style)
+      Object.assign(otherProps, rest)
+    }
+
+    return {
+      ...otherProps,
+      className: cn(...classNames),
+      style: Object.assign({}, ...styles),
+    } as React.HTMLAttributes<HTMLDivElement>
+  }, [plugins, ctx])
+
+  // Core SVG container
+  let svgContainer = (
+    <div
+      className={cn(
+        "mermaid-container w-full h-full flex items-center justify-center p-4",
+        (isUpdating || isParsing) &&
+          "opacity-50 grayscale-[0.5] transition-[opacity,filter] duration-300"
+      )}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
+      dangerouslySetInnerHTML={{ __html: svg || lastValidSvg }}
+    />
+  )
+
+  // Apply plugin wrappers
+  for (const plugin of plugins) {
+    if (plugin.wrapContainer) {
+      svgContainer = <>{plugin.wrapContainer(svgContainer, ctx)}</>
+    }
+  }
+
   return (
     <div
       ref={containerRef}
-      className={cn(
-        "relative h-full overflow-hidden select-none touch-none bg-muted/5 cursor-grab active:cursor-grabbing",
-        className
-      )}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== " ") return
-        event.preventDefault()
-        handleNodeSelect(event.target, event as unknown as Event)
-      }}
+      className={cn("relative h-full overflow-hidden bg-muted/5", className)}
+      {...mergedContainerProps}
     >
-      <div
-        className={cn(
-          "mermaid-container w-full h-full flex items-center justify-center transition-all duration-300",
-          minimal ? "p-4" : "p-8",
-          (isUpdating || isParsing) && "opacity-50 grayscale-[0.5] scale-[0.98]"
-        )}
-        style={{
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          transformOrigin: "center center",
-        }}
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid SVG output
-        dangerouslySetInnerHTML={{ __html: svg || lastValidSvg }}
-      />
+      {svgContainer}
 
-      {/* Loading Mask/Overlay */}
-      {(isUpdating || isParsing) && (
+      {/* Loading indicator */}
+      {showLoading && (isUpdating || isParsing) && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/5 backdrop-blur-[1px] pointer-events-none animate-in fade-in duration-300">
           <div className="flex items-center gap-3 px-4 py-2 bg-background/80 backdrop-blur-md rounded-full border shadow-sm scale-90">
             <div className="size-3 rounded-full bg-primary animate-pulse" />
@@ -166,112 +207,14 @@ export function MermaidRenderer({
         </div>
       )}
 
-      {!minimal && (
-        <>
-          <div
-            className="absolute bottom-4 right-4 flex flex-col gap-1.5 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-20 scale-90 sm:scale-100"
-            onPointerDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex flex-col gap-1">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 rounded-lg"
-                    title="View Code"
-                  >
-                    <Code className="size-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl! max-h-[80vh] flex flex-col">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Code className="size-5" />
-                      Mermaid Source Code
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-4 font-mono text-[13px] leading-relaxed border group relative">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleCopy}
-                      className="absolute top-2 right-2 size-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur"
-                      title="Copy Code"
-                    >
-                      {copied ? (
-                        <Check className="size-4 text-green-500" />
-                      ) : (
-                        <Copy className="size-4" />
-                      )}
-                    </Button>
-                    <pre className="whitespace-pre-wrap break-all">
-                      <code>{code}</code>
-                    </pre>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleCopy}
-                className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
-                title="Copy Mermaid Code"
-              >
-                {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleExport}
-                className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
-                disabled={exporting || !svg}
-                title="Export PNG"
-              >
-                <Download className="size-4" />
-              </Button>
-            </div>
-
-            <div className="h-px bg-border mx-1 my-0.5" />
-
-            <div className="flex flex-col gap-1">
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-8 rounded-lg"
-                onClick={zoomIn}
-                title="Zoom In"
-              >
-                <Plus className="size-4" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-8 rounded-lg"
-                onClick={reset}
-                title="Reset"
-              >
-                <RotateCcw className="size-3.5" />
-              </Button>
-              <Button
-                variant="secondary"
-                size="icon"
-                className="size-8 rounded-lg"
-                onClick={zoomOut}
-                title="Zoom Out"
-              >
-                <Minus className="size-4" />
-              </Button>
-            </div>
-          </div>
-
-          <div className="absolute bottom-4 left-4 flex items-center gap-2 px-3 py-1.5 bg-background/50 backdrop-blur-sm rounded-full border text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
-            <Maximize2 className="size-3" />
-            {(transform.scale * 100).toFixed(0)}%
-          </div>
-        </>
-      )}
+      {/* Plugin controls */}
+      {plugins.map((plugin) => plugin.renderControls?.(ctx))}
     </div>
   )
 }
+
+// ============================================================================
+// Re-export plugins
+// ============================================================================
+
+export * from "./plugins"

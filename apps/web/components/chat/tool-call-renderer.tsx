@@ -1,24 +1,22 @@
 "use client"
 
-import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
 import type { UpdateChartToolUIPart } from "@/types/tool"
 import { MessageResponse } from "@workspace/ui/ai-elements/message"
 import { Tool, ToolContent, ToolHeader } from "@workspace/ui/ai-elements/tool"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog"
 import { Eye } from "lucide-react"
 
 interface ToolCallRendererProps {
   toolPart: UpdateChartToolUIPart
+  messageId: string
+  onSelectMermaidMessage: (id: string | null) => void
 }
 
-export function ToolCallRenderer({ toolPart }: ToolCallRendererProps) {
+export function ToolCallRenderer({
+  toolPart,
+  messageId,
+  onSelectMermaidMessage,
+}: ToolCallRendererProps) {
   const description =
     toolPart.state === "output-available"
       ? toolPart.output?.description
@@ -59,22 +57,15 @@ export function ToolCallRenderer({ toolPart }: ToolCallRendererProps) {
               </h4>
               <p className="text-xs text-muted-foreground">View the Mermaid diagram.</p>
             </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5">
-                  <Eye className="size-4" />
-                  View
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-5xl! h-[70vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle>Mermaid Diagram</DialogTitle>
-                </DialogHeader>
-                <div className="flex-1 rounded-lg border bg-muted/20 overflow-hidden">
-                  <MermaidRenderer code={code} className="h-full" />
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => onSelectMermaidMessage(messageId)}
+            >
+              <Eye className="size-4" />
+              View
+            </Button>
           </div>
         )}
       </ToolContent>

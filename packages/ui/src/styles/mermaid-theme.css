@@ -9,6 +9,11 @@
   --mermaid-cluster-bg: var(--muted);
 }
 
+.dark {
+  --mermaid-edge-color: var(--foreground); /* Brighter edges in dark mode for better contrast */
+  --mermaid-node-border: oklch(0.4 0 0); /* Slightly brighter borders in dark mode */
+}
+
 .mermaid-container {
   display: flex !important;
   justify-content: center;
@@ -69,7 +74,9 @@
 .mermaid-container .edge-thickness-thin,
 .mermaid-container path.link,
 .mermaid-container path.transition,
-.mermaid-container .relationshipLine {
+.mermaid-container .relationshipLine,
+.mermaid-container .relation,
+.mermaid-container path.relation {
   stroke: var(--mermaid-edge-color) !important;
   stroke-width: 1.5px !important;
 }
@@ -78,25 +85,40 @@
   stroke-width: 3.5px !important;
 }
 
-.mermaid-container .edgePath marker path,
-.mermaid-container .marker,
-.mermaid-container #arrowhead,
-.mermaid-container [id^="mermaid-arrow"] {
+.mermaid-container marker path {
   fill: var(--mermaid-edge-color) !important;
-  stroke: var(--mermaid-edge-color) !important;
+  stroke: none !important;
 }
 
 .mermaid-container .edgeLabel {
-  background-color: transparent !important; /* 强制背景透明 */
+  background-color: transparent !important;
   color: var(--mermaid-edge-color) !important;
 }
 
 .mermaid-container .edgeLabel rect,
 .mermaid-container .label rect,
-.mermaid-container [class*="edgeLabel"] rect {
-  fill: var(--background) !important; /* 使用背景色作为文字衬底 */
+.mermaid-container [class*="edgeLabel"] rect,
+.mermaid-container .relation-label-rect,
+.mermaid-container .relation-label rect,
+.mermaid-container .label-container,
+.mermaid-container .labelBkg {
+  fill: var(--background) !important;
+  background-color: var(--background) !important;
   fill-opacity: 0.9 !important;
   stroke: none !important;
+}
+
+/* Explicit and aggressive fix for the white background squares in dark mode */
+.dark .mermaid-container .edgeLabel rect,
+.dark .mermaid-container .label rect,
+.dark .mermaid-container [class*="edgeLabel"] rect,
+.dark .mermaid-container .relation-label-rect,
+.dark .mermaid-container .relation-label rect,
+.dark .mermaid-container .label-container,
+.dark .mermaid-container .labelBkg {
+  fill: var(--background) !important;
+  background-color: var(--background) !important;
+  fill-opacity: 1 !important;
 }
 
 /* 覆盖所有可能的文字路径 */
@@ -104,15 +126,21 @@
 .mermaid-container .edgeLabel span,
 .mermaid-container .edgeLabel tspan,
 .mermaid-container .edgeLabel div,
+.mermaid-container .edgeLabel p,
 .mermaid-container .label text,
 .mermaid-container .label span,
 .mermaid-container [class*="edgeLabel"] text,
-.mermaid-container .relation-label {
+.mermaid-container .relation-label,
+.mermaid-container .relation-label tspan,
+.mermaid-container .relation-label text,
+.mermaid-container .labelBkg span,
+.mermaid-container .labelBkg p {
   fill: var(--mermaid-edge-color) !important;
   color: var(--mermaid-edge-color) !important;
-  font-weight: 500 !important;
+  font-weight: 600 !important;
   font-size: 13px !important;
   opacity: 1 !important;
+  margin: 0 !important;
 }
 
 /* --- Sequence Diagram --- */
@@ -172,14 +200,23 @@
 .mermaid-container .classGroup rect {
   fill: var(--mermaid-node-bg) !important;
   stroke: var(--mermaid-node-border) !important;
+  stroke-width: 1.5px !important;
 }
 
 .mermaid-container .classGroup line {
   stroke: var(--mermaid-node-border) !important;
+  stroke-width: 1.5px !important;
 }
 
-.mermaid-container .classLabel {
+.mermaid-container .classLabel text,
+.mermaid-container .classLabel span {
   fill: var(--mermaid-node-text) !important;
+  color: var(--mermaid-node-text) !important;
+  font-weight: 600 !important;
+}
+
+.mermaid-container .classLabel .title {
+  font-weight: 700 !important;
 }
 
 /* --- State Diagram --- */

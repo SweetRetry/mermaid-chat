@@ -1,5 +1,6 @@
 "use client"
 
+import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
 import { Button } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
@@ -8,14 +9,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@workspace/ui/components/hover-card"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { cn } from "@workspace/ui/lib/utils"
-import { ChevronDown, MessageSquarePlus, Trash2 } from "lucide-react"
+import { ChevronDown, FileCode2, MessageSquarePlus, Trash2 } from "lucide-react"
 
 export interface Conversation {
   id: string
   title: string
   updatedAt: Date | string
+  latestChartCode: string | null
 }
 
 interface ConversationSelectorProps {
@@ -87,35 +94,57 @@ export function ConversationSelector({
             ) : (
               <div className="space-y-1">
                 {conversations.map((conversation) => (
-                  <DropdownMenuItem
-                    key={conversation.id}
-                    className={cn(
-                      "flex items-center justify-between group cursor-pointer p-2.5 rounded-lg transition-colors",
-                      currentId === conversation.id ? "bg-primary/5 text-primary" : ""
+                  <HoverCard key={conversation.id} openDelay={300} closeDelay={100}>
+                    <HoverCardTrigger asChild>
+                      <DropdownMenuItem
+                        className={cn(
+                          "flex items-center justify-between group cursor-pointer p-2.5 rounded-lg transition-colors",
+                          currentId === conversation.id ? "bg-primary/5 text-primary" : ""
+                        )}
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          onSelect(conversation.id)
+                        }}
+                      >
+                        <div className="flex items-center gap-2 flex-1 min-w-0 mr-3">
+                          {conversation.latestChartCode && (
+                            <FileCode2 className="size-3.5 text-primary/60 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-sm">{conversation.title}</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">
+                              {formatDate(conversation.updatedAt)}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 opacity-0 group-hover:opacity-100 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onDelete(conversation.id)
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </DropdownMenuItem>
+                    </HoverCardTrigger>
+                    {conversation.latestChartCode && (
+                      <HoverCardContent
+                        side="right"
+                        align="start"
+                        className="w-80 h-60 p-0 overflow-hidden"
+                      >
+                        <MermaidRenderer
+                          code={conversation.latestChartCode}
+                          className="w-full h-full"
+                          showLoading={false}
+                          showError={false}
+                        />
+                      </HoverCardContent>
                     )}
-                    onSelect={(e) => {
-                      e.preventDefault()
-                      onSelect(conversation.id)
-                    }}
-                  >
-                    <div className="flex-1 min-w-0 mr-3">
-                      <div className="truncate font-semibold text-sm">{conversation.title}</div>
-                      <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">
-                        {formatDate(conversation.updatedAt)}
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7 opacity-0 group-hover:opacity-100 shrink-0 hover:bg-destructive/10 hover:text-destructive transition-all"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDelete(conversation.id)
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </DropdownMenuItem>
+                  </HoverCard>
                 ))}
               </div>
             )}

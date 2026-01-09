@@ -1,7 +1,7 @@
 "use client"
 
 import { ChatInput } from "@/components/chat/chat-input"
-import { useChatStore } from "@/lib/store/chat-store"
+import { useConversationsContext } from "@/components/conversation/conversations-context"
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -31,7 +31,7 @@ export default function Page() {
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
   const [model, setModel] = useState("deepseek-chat")
-  const createConversation = useChatStore((state) => state.createConversation)
+  const { createConversation } = useConversationsContext()
 
   const handleSubmit = async (prompt: string) => {
     if (!prompt.trim()) return

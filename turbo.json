@@ -8,15 +8,26 @@
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
       "env": [
         "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
         "DIRECT_URL",
         "PGHOST",
         "PGHOST_UNPOOLED",
         "PGUSER",
         "PGPASSWORD",
         "PGDATABASE",
+        "POSTGRES_URL",
+        "POSTGRES_PRISMA_URL",
+        "POSTGRES_PASSWORD",
+        "POSTGRES_DATABASE",
+        "POSTGRES_URL_NO_SSL",
+        "POSTGRES_HOST",
+        "POSTGRES_URL_NON_POOLING",
         "POSTGRES_USER",
         "NEON_PROJECT_ID",
-        "ARK_API_KEY"
+        "ARK_API_KEY",
+        "DEEPSEEK_API_KEY",
+        "STACK_SECRET_SERVER_KEY",
+        "SITE_PASSWORD"
       ]
     },
     "lint": {

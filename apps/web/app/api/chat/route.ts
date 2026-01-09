@@ -241,73 +241,77 @@ export async function POST(req: Request) {
     async onFinish({ text, reasoning, toolCalls, toolResults }) {
       if (typeof conversationId !== "string" || userParts.length === 0) return
 
-      const assistantParts: UIMessage["parts"] = []
-      if (text) {
-        assistantParts.push({ type: "text", text })
-      }
-      if (toolCalls && toolResults) {
-        for (const tc of toolCalls) {
-          const res = toolResults.find((tr) => tr.toolCallId === tc.toolCallId)
-          assistantParts.push({
-            type: `tool-${tc.toolName}` as `tool-${string}`,
-            toolCallId: tc.toolCallId,
-            state: "output-available",
-            input: "input" in tc ? tc.input : undefined,
-            output: res && "output" in res ? res.output : undefined,
-          } as ToolUIPart)
+      try {
+        const assistantParts: UIMessage["parts"] = []
+        if (text) {
+          assistantParts.push({ type: "text", text })
         }
-      }
-
-      let latestChartCode: string | undefined
-      if (toolResults) {
-        const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
-        if (chartResult && "output" in chartResult) {
-          const output = chartResult.output as { code?: string }
-          if (output?.code) {
-            latestChartCode = output.code
+        if (toolCalls && toolResults) {
+          for (const tc of toolCalls) {
+            const res = toolResults.find((tr) => tr.toolCallId === tc.toolCallId)
+            assistantParts.push({
+              type: `tool-${tc.toolName}` as `tool-${string}`,
+              toolCallId: tc.toolCallId,
+              state: "output-available",
+              input: "input" in tc ? tc.input : undefined,
+              output: res && "output" in res ? res.output : undefined,
+            } as ToolUIPart)
           }
         }
-      }
 
-      // Extract reasoning text from reasoning parts
-      const reasoningText = reasoning
-        ?.filter((r): r is { type: "reasoning"; text: string } => r.type === "reasoning")
-        .map((r) => r.text)
-        .join("")
-
-      await prisma.$transaction(async (tx) => {
-        const existingMessage = await tx.message.findFirst({
-          where: { conversationId },
-          select: { id: true },
-        })
-
-        if (!existingMessage && userText) {
-          await tx.conversation.update({
-            where: { id: conversationId },
-            data: { title: generateTitle(userText) },
-          })
+        let latestChartCode: string | undefined
+        if (toolResults) {
+          const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
+          if (chartResult && "output" in chartResult) {
+            const output = chartResult.output as { code?: string }
+            if (output?.code) {
+              latestChartCode = output.code
+            }
+          }
         }
 
-        await tx.message.createMany({
-          data: [
-            { conversationId, role: "user", content: JSON.stringify(userParts) },
-            {
-              conversationId,
-              role: "assistant",
-              content: JSON.stringify(assistantParts),
-              reasoning: reasoningText || null,
-            },
-          ],
-        })
+        // Extract reasoning text from reasoning parts
+        const reasoningText = reasoning
+          ?.filter((r): r is { type: "reasoning"; text: string } => r.type === "reasoning")
+          .map((r) => r.text)
+          .join("")
 
-        await tx.conversation.update({
-          where: { id: conversationId },
-          data: {
-            updatedAt: new Date(),
-            ...(latestChartCode && { latestChartCode }),
-          },
+        await prisma.$transaction(async (tx) => {
+          const existingMessage = await tx.message.findFirst({
+            where: { conversationId },
+            select: { id: true },
+          })
+
+          if (!existingMessage && userText) {
+            await tx.conversation.update({
+              where: { id: conversationId },
+              data: { title: generateTitle(userText) },
+            })
+          }
+
+          await tx.message.createMany({
+            data: [
+              { conversationId, role: "user", content: JSON.stringify(userParts) },
+              {
+                conversationId,
+                role: "assistant",
+                content: JSON.stringify(assistantParts),
+                reasoning: reasoningText || null,
+              },
+            ],
+          })
+
+          await tx.conversation.update({
+            where: { id: conversationId },
+            data: {
+              updatedAt: new Date(),
+              ...(latestChartCode && { latestChartCode }),
+            },
+          })
         })
-      })
+      } catch (error) {
+        console.error("Failed to save messages:", error)
+      }
     },
   })
 

@@ -11,7 +11,9 @@ An AI-powered chat application for creating and editing Mermaid diagrams through
 - **Conversation History**: All chats are persisted and can be resumed
 - **Node Selection**: Click diagram nodes to reference them in your next message
 - **Version History**: Browse and compare previous diagram versions within a conversation
-- **Multiple AI Models**: Choose between DeepSeek and Doubao Seed
+- **AI Model**: Powered by Doubao Seed 1.8 via Volcengine Ark
+- **Authentication**: Simple password-based authentication for access control
+- **Multimodal Support**: Upload images alongside text prompts
 
 ### Supported Diagram Types
 
@@ -27,8 +29,9 @@ An AI-powered chat application for creating and editing Mermaid diagrams through
 ## Tech Stack
 
 - **Framework**: [Next.js 16](https://nextjs.org) with App Router and Turbopack
-- **AI**: [Vercel AI SDK](https://sdk.vercel.ai) with DeepSeek and Doubao Seed
-- **Database**: [Prisma](https://prisma.io) with [Neon](https://neon.tech) serverless PostgreSQL
+- **AI**: [Vercel AI SDK](https://sdk.vercel.ai) with Doubao Seed 1.8 (via Volcengine Ark)
+- **State Management**: [TanStack Query](https://tanstack.com/query) for server state, React Context for UI state
+- **Database**: [Prisma](https://prisma.io) with [Neon](https://neon.tech) serverless PostgreSQL (optimized connection pooling)
 - **UI**: [shadcn/ui](https://ui.shadcn.com) components with Radix primitives
 - **Diagrams**: [Mermaid.js](https://mermaid.js.org) for rendering
 - **Build**: [Turborepo](https://turbo.build/repo) monorepo with [pnpm](https://pnpm.io)
@@ -41,15 +44,21 @@ An AI-powered chat application for creating and editing Mermaid diagrams through
 ├── apps/
 │   └── web/                    # Next.js application
 │       ├── app/                # App Router pages and API routes
+│       │   ├── api/            # API routes (chat, conversations, auth)
+│       │   ├── chat/           # Chat page with conversation routing
+│       │   └── login/          # Authentication page
 │       ├── components/         # React components
 │       │   ├── chat/           # Chat interface components
 │       │   ├── mermaid/        # Diagram renderer and plugins
-│       │   └── layout/         # Layout components
+│       │   ├── conversation/   # Conversation management
+│       │   └── layout/         # Layout components (sidebar)
 │       ├── hooks/              # Custom React hooks
-│       ├── lib/                # Utilities and constants
+│       ├── lib/                # Utilities, constants, and database
+│       ├── types/              # TypeScript type definitions
 │       └── prisma/             # Database schema
 ├── packages/
 │   ├── ui/                     # Shared UI component library
+│   ├── ai-sdk-volcengine-adapter/  # Volcengine AI SDK adapter
 │   └── typescript-config/      # Shared TypeScript configs
 └── turbo.json                  # Turborepo configuration
 ```
@@ -70,9 +79,11 @@ Create `.env` file in `apps/web/`:
 # Database
 DATABASE_URL="postgresql://..."
 
-# AI Providers (at least one required)
-DEEPSEEK_API_KEY="..."
-ARK_API_KEY="..."  # For Doubao Seed via Volcengine Ark
+# AI Provider
+ARK_API_KEY="..."  # Volcengine Ark API key for Doubao Seed 1.8
+
+# Authentication
+AUTH_PASSWORD="..."  # Password for accessing the application
 ```
 
 ### Installation

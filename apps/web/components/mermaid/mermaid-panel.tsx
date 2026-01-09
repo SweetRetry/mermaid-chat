@@ -23,6 +23,7 @@ interface MermaidPanelProps {
   onSelectedMermaidMessageIdChange: (id: string | null) => void
   isLoadingConversation: boolean
   onAppendInputText: (text: string) => void
+  onFixError?: (error: string) => void
 }
 
 export function MermaidPanel({
@@ -32,6 +33,7 @@ export function MermaidPanel({
   onSelectedMermaidMessageIdChange,
   isLoadingConversation,
   onAppendInputText,
+  onFixError,
 }: MermaidPanelProps) {
   const { latestMermaidCode, isMermaidUpdating } = useMermaidContext()
 
@@ -84,6 +86,7 @@ export function MermaidPanel({
             className="h-full"
             plugins={plugins}
             isUpdating={isMermaidUpdating}
+            onFixError={isViewingOldVersion ? undefined : onFixError}
           />
           {isViewingOldVersion && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">

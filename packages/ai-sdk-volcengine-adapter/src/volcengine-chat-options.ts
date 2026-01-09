@@ -34,6 +34,14 @@ export const volcengineChatOptions = z.object({
      * @default true
      */
     parallelToolCalls: z.boolean().optional(),
+
+    /**
+     * Whether to enable extended thinking mode.
+     * When enabled, the model will generate reasoning_content in response.
+     *
+     * @default false
+     */
+    thinking: z.boolean().optional(),
 });
 
 

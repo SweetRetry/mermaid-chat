@@ -95,8 +95,8 @@ export default function Page() {
           {EXAMPLES.map((example) => (
             <Button
               key={example.label}
-              variant="outline"
-              className="rounded-full h-11 px-6 bg-secondary/50 border-none hover:bg-secondary/80 transition-all text-sm font-medium flex items-center gap-2"
+              variant="secondary"
+              className="rounded-full h-11 px-6 font-medium flex items-center gap-2"
               disabled={isPending}
               onClick={() => handleExampleClick(example.prompt)}
             >

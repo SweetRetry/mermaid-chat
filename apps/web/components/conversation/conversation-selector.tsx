@@ -9,15 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@workspace/ui/components/hover-card"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@workspace/ui/components/hover-card"
 import { ScrollArea } from "@workspace/ui/components/scroll-area"
 import { cn } from "@workspace/ui/lib/utils"
+import dayjs from "dayjs"
 import { ChevronDown, FileCode2, MessageSquarePlus, Trash2 } from "lucide-react"
-
 export interface Conversation {
   id: string
   title: string
@@ -32,18 +28,6 @@ interface ConversationSelectorProps {
   onNew: () => void
   onDelete: (id: string) => void
   loading?: boolean
-}
-
-function formatDate(date: Date | string): string {
-  const d = typeof date === "string" ? new Date(date) : date
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-
-  if (days === 0) return "Today"
-  if (days === 1) return "Yesterday"
-  if (days < 7) return `${days} days ago`
-  return d.toLocaleDateString()
 }
 
 export function ConversationSelector({
@@ -111,9 +95,11 @@ export function ConversationSelector({
                             <FileCode2 className="size-3.5 text-primary/60 shrink-0" />
                           )}
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-sm">{conversation.title}</div>
+                            <div className="truncate font-semibold text-sm">
+                              {conversation.title}
+                            </div>
                             <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">
-                              {formatDate(conversation.updatedAt)}
+                              {dayjs(conversation.updatedAt).format("YYYY-MM-DD HH:mm:ss")}
                             </div>
                           </div>
                         </div>

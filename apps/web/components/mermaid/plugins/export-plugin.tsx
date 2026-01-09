@@ -11,9 +11,13 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
   const [exporting, setExporting] = useState(false)
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(ctx.code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    try {
+      await navigator.clipboard.writeText(ctx.code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard access denied or unavailable
+    }
   }
 
   const handleExport = async () => {
@@ -21,6 +25,8 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
     setExporting(true)
     try {
       await exportSvgToPng(ctx.svg)
+    } catch {
+      // Export failed silently
     } finally {
       setExporting(false)
     }
@@ -35,16 +41,16 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
         variant="ghost"
         size="icon"
         onClick={handleCopy}
-        className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+        className="size-8 rounded-lg"
         title="Copy Mermaid Code"
       >
-        {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+        {copied ? <Check className="size-4 text-emerald-500" /> : <Copy className="size-4" />}
       </Button>
       <Button
         variant="ghost"
         size="icon"
         onClick={handleExport}
-        className="size-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+        className="size-8 rounded-lg"
         disabled={exporting || !ctx.svg}
         title="Export PNG"
       >

@@ -229,6 +229,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
         tools: volcengineTools,
         tool_choice: volcengineToolChoice,
         parallel_tool_calls: options.parallelToolCalls,
+        thinking: options.thinking,
       }),
       warnings: [...warnings, ...toolWarnings],
     }

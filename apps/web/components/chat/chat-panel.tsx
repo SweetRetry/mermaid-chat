@@ -11,16 +11,15 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@workspace/ui/ai-elements/conversation"
+import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
-import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { DefaultChatTransport, type FileUIPart } from "ai"
 import { MessageSquare } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useEffectEvent, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
-
 
 interface ChatPanelProps {
   className?: string
@@ -32,35 +31,38 @@ interface ChatPanelProps {
   onInputTextChange: (text: string) => void
 }
 
-export function ChatPanel({
-  className,
-  conversationId,
-  conversationDetail,
-  isLoadingConversation,
-  onSelectMermaidMessage,
-  inputText,
-  onInputTextChange,
-}: ChatPanelProps) {
-  const [model, setModel] = useState("seed1.8")
+export interface ChatPanelHandle {
+  sendTextMessage: (text: string) => void
+}
 
+export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel(
+  {
+    className,
+    conversationId,
+    conversationDetail,
+    isLoadingConversation,
+    onSelectMermaidMessage,
+    inputText,
+    onInputTextChange,
+  },
+  ref
+) {
   const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
-
   const { refreshConversations, pendingMessage, setPendingMessage } = useConversationsContext()
+
+  // Initialize model from pendingMessage if available (lazy initializer avoids useEffect sync)
+  const [model, setModel] = useState(() => pendingMessage?.model ?? "seed1.8")
+  const [thinking, setThinking] = useState(false)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
   // Use refs to always get latest values in callbacks
   const modelRef = useRef(model)
   const chartRef = useRef(latestMermaidCode)
+  const thinkingRef = useRef(thinking)
   modelRef.current = model
   chartRef.current = latestMermaidCode
-
-  // Apply pending message's model if present
-  useEffect(() => {
-    if (pendingMessage?.model) {
-      setModel(pendingMessage.model)
-    }
-  }, [pendingMessage?.model])
+  thinkingRef.current = thinking
 
   const transport = useMemo(
     () =>
@@ -74,6 +76,7 @@ export function ChatPanel({
             body: {
               currentChart: chartRef.current,
               model: modelRef.current,
+              thinking: thinkingRef.current,
               conversationId,
               userMessage: lastMessage?.role === "user" ? lastMessage.parts : null,
             },
@@ -85,7 +88,7 @@ export function ChatPanel({
 
   const initialUIMessages = useMemo(() => convertToUIMessages(initialMessages), [initialMessages])
 
-  const { messages, sendMessage, status, setMessages } = useChat({
+  const { messages, sendMessage, status } = useChat({
     id: conversationId ?? undefined,
     messages: initialUIMessages,
     transport,
@@ -100,14 +103,30 @@ export function ChatPanel({
     },
   })
 
-  useEffect(() => {
-    if (initialUIMessages.length > 0 && messages.length === 0) {
-      setMessages(initialUIMessages)
-    }
-  }, [initialUIMessages, setMessages, messages.length])
+  useImperativeHandle(ref, () => ({
+    sendTextMessage: (text: string) => {
+      if (!text.trim() || status !== "ready") return
+      sendMessage({ parts: [{ type: "text", text }] })
+    },
+  }), [sendMessage, status])
 
   // Track if pending message has been sent
   const pendingMessageSentRef = useRef(false)
+
+  // Event handler for sending pending message (non-reactive)
+  const onSendPendingMessage = useEffectEvent((pending: NonNullable<typeof pendingMessage>) => {
+    const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
+    if (pending.files.length > 0) {
+      parts.push(...pending.files)
+    }
+    if (pending.text.trim()) {
+      parts.push({ type: "text", text: pending.text })
+    }
+    if (parts.length > 0) {
+      sendMessage({ parts })
+    }
+    setPendingMessage(null)
+  })
 
   // Send pending message once when ready
   useEffect(() => {
@@ -115,34 +134,21 @@ export function ChatPanel({
     if (status !== "ready") return
 
     pendingMessageSentRef.current = true
-
-    // Build parts from pending message
-    const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
-    if (pendingMessage.files.length > 0) {
-      parts.push(...pendingMessage.files)
-    }
-    if (pendingMessage.text.trim()) {
-      parts.push({ type: "text", text: pendingMessage.text })
-    }
-
-    if (parts.length > 0) {
-      sendMessage({ parts })
-    }
-
-    // Clear pending message after sending
-    setPendingMessage(null)
-  }, [pendingMessage, conversationId, status, setPendingMessage])
+    onSendPendingMessage(pendingMessage)
+  }, [pendingMessage, conversationId, status])
 
   // Handle mermaid diagram updates from messages via custom hook
   useMermaidUpdates(messages)
 
   if (!conversationId) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4 opacity-50">
-        <MessageSquare className="size-12 text-muted-foreground/40" />
+      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
+        <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-2">
+          <MessageSquare className="size-6 text-muted-foreground/60" />
+        </div>
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold">No Conversation Selected</h3>
-          <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+          <h3 className="text-sm font-medium">No conversation selected</h3>
+          <p className="text-xs text-muted-foreground max-w-52 mx-auto">
             Choose a chat from the sidebar or create a new one to get started.
           </p>
         </div>
@@ -161,7 +167,7 @@ export function ChatPanel({
           </div>
           {/* Assistant message skeleton */}
           <div className="flex justify-start">
-            <div className="space-y-3 w-full max-w-[85%]">
+            <div className="space-y-3 w-full max-w-5/6">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-5/6" />
               <Skeleton className="h-4 w-4/6" />
@@ -178,7 +184,7 @@ export function ChatPanel({
   }
 
   return (
-    <div className="h-screen overflow-auto flex flex-col">
+    <div className="h-full overflow-auto flex flex-col">
       <Conversation>
         <ConversationContent className="p-4 space-y-6">
           {messages.length === 0 ? (
@@ -216,8 +222,10 @@ export function ChatPanel({
           status={status === "submitted" ? "streaming" : status}
           model={model}
           onModelChange={setModel}
+          thinking={thinking}
+          onThinkingChange={setThinking}
         />
       </div>
     </div>
   )
-}
+})

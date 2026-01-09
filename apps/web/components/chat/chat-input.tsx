@@ -21,7 +21,8 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import type { FileUIPart } from "ai"
-import { Paperclip } from "lucide-react"
+import { cn } from "@workspace/ui/lib/utils"
+import { Brain, Paperclip } from "lucide-react"
 
 const ACCEPT_STRING = "image/*,video/*,text/markdown,.md"
 
@@ -35,6 +36,8 @@ interface ChatInputProps {
   className?: string
   model: string
   onModelChange: (value: string) => void
+  thinking?: boolean
+  onThinkingChange?: (value: boolean) => void
 }
 
 function AttachmentButton({ disabled }: { disabled: boolean }) {
@@ -47,6 +50,24 @@ function AttachmentButton({ disabled }: { disabled: boolean }) {
       title={disabled ? "当前模型不支持文件上传" : "添加文件 (图片、视频、Markdown)"}
     >
       <Paperclip className="size-4" />
+    </PromptInputButton>
+  )
+}
+
+function ThinkingButton({
+  active,
+  onToggle,
+}: {
+  active: boolean
+  onToggle: () => void
+}) {
+  return (
+    <PromptInputButton
+      onClick={onToggle}
+      title={active ? "关闭深度思考" : "开启深度思考"}
+      className={cn(active && "bg-primary/10 text-primary")}
+    >
+      <Brain className="size-4" />
     </PromptInputButton>
   )
 }
@@ -88,9 +109,15 @@ export function ChatInput({
   placeholder = "Describe the diagram you want to create...",
   model,
   onModelChange,
+  thinking = false,
+  onThinkingChange,
   className,
 }: ChatInputProps) {
   const supportsFiles = model === "seed1.8"
+
+  const handleThinkingToggle = () => {
+    onThinkingChange?.(!thinking)
+  }
 
   const handleSubmit = async (message: PromptInputMessage) => {
     // Process markdown files: convert to text
@@ -99,12 +126,7 @@ export function ChatInput({
   }
 
   return (
-    <PromptInput
-      className={className}
-      accept={ACCEPT_STRING}
-      multiple
-      onSubmit={handleSubmit}
-    >
+    <PromptInput className={className} accept={ACCEPT_STRING} multiple onSubmit={handleSubmit}>
       <PromptInputBody>
         <PromptInputAttachments>
           {(file) => <PromptInputAttachment data={file} />}
@@ -113,11 +135,12 @@ export function ChatInput({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           placeholder={placeholder}
-          className="min-h-[60px]"
+          className="min-h-16"
         />
       </PromptInputBody>
       <PromptInputFooter>
         <AttachmentButton disabled={!supportsFiles} />
+        <ThinkingButton active={thinking} onToggle={handleThinkingToggle} />
 
         <div className="flex-1" />
 
@@ -125,7 +148,7 @@ export function ChatInput({
           <Select value={model} onValueChange={onModelChange}>
             <SelectTrigger
               size="sm"
-              className="w-auto min-w-[100px] h-8 rounded-full border-none bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+              className="min-w-28 rounded-full border-none bg-muted/50 hover:bg-muted transition-colors"
             >
               <SelectValue placeholder="Model" />
             </SelectTrigger>
@@ -141,7 +164,7 @@ export function ChatInput({
           <PromptInputSubmit
             status={status}
             disabled={disabled ?? status === "streaming"}
-            className="size-8 rounded-full shadow-lg"
+            className="rounded-full shadow-md"
           />
         </div>
       </PromptInputFooter>

@@ -181,7 +181,7 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { userMessage, currentChart, model, conversationId } = payload
+  const { userMessage, currentChart, model, thinking, conversationId } = payload
 
   if (typeof currentChart !== "string" && currentChart !== undefined) {
     return new Response("Invalid request payload", { status: 400 })
@@ -238,6 +238,11 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: modelMessages,
     tools: TOOLS,
+    providerOptions: {
+      volcengine: {
+        thinking: thinking === true,
+      },
+    },
     async onFinish({ text, reasoning, toolCalls, toolResults }) {
       if (typeof conversationId !== "string" || userParts.length === 0) return
 

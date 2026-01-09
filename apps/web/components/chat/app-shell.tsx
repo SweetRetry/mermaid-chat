@@ -1,6 +1,6 @@
 "use client"
 
-import { ChatPanel } from "@/components/chat/chat-panel"
+import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
 import { MermaidContextProvider } from "@/components/mermaid/mermaid-context"
 import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
 import { useConversation } from "@/hooks/use-conversation"
@@ -11,8 +11,17 @@ import {
 } from "@workspace/ui/components/resizable"
 import { SidebarTrigger, useSidebar } from "@workspace/ui/components/sidebar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Layout } from "react-resizable-panels"
+
+// Suppress hydration warning for client-only values
+const useIsClient = () => {
+  const [isClient, setIsClient] = useState(false)
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+  return isClient
+}
 
 interface AppShellProps {
   defaultLayout?: Layout
@@ -23,11 +32,23 @@ interface AppShellProps {
 export function AppShell({ defaultLayout, groupId, conversationId }: AppShellProps) {
   const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
   const [selectedMermaidMessageId, setSelectedMermaidMessageId] = useState<string | null>(null)
-  const [latestMermaidCode, setLatestMermaidCode] = useState("")
-  const [isMermaidUpdating, setIsMermaidUpdating] = useState(false)
   const [inputText, setInputText] = useState("")
+  const chatPanelRef = useRef<ChatPanelHandle>(null)
   const { isMobile, state } = useSidebar()
   const isCollapsed = state === "collapsed"
+  const isClient = useIsClient()
+
+  // State for streaming/override mermaid code (null = use conversation data)
+  const [streamingMermaidCode, setStreamingMermaidCode] = useState<string | null>(null)
+  const [isMermaidUpdating, setIsMermaidUpdating] = useState(false)
+
+  // Derive effective mermaid code: streaming override takes priority, then conversation data
+  const latestMermaidCode = streamingMermaidCode ?? conversationDetail?.latestChart?.mermaidCode ?? ""
+
+  // Wrapper to set mermaid code (updates streaming state)
+  const setLatestMermaidCode = useCallback((code: string) => {
+    setStreamingMermaidCode(code)
+  }, [])
 
   const handleLayoutChange = useCallback(
     (layout: Layout) => {
@@ -37,22 +58,13 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
     [groupId]
   )
 
+  // Reset state when conversation changes
   useEffect(() => {
     setSelectedMermaidMessageId(null)
     setInputText("")
+    setStreamingMermaidCode(null)
+    setIsMermaidUpdating(false)
   }, [conversationId])
-
-  useEffect(() => {
-    if (conversationDetail?.latestChart?.mermaidCode) {
-      setLatestMermaidCode(conversationDetail.latestChart.mermaidCode)
-      setIsMermaidUpdating(false)
-      return
-    }
-    if (!conversationId) {
-      setLatestMermaidCode("")
-      setIsMermaidUpdating(false)
-    }
-  }, [conversationDetail, conversationId])
 
   const mermaidContextValue = useMemo(
     () => ({
@@ -61,7 +73,7 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
       isMermaidUpdating,
       setIsMermaidUpdating,
     }),
-    [latestMermaidCode, isMermaidUpdating]
+    [latestMermaidCode, setLatestMermaidCode, isMermaidUpdating]
   )
 
   const handleAppendInputText = useCallback((text: string) => {
@@ -73,12 +85,21 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
     })
   }, [])
 
+  const handleFixError = useCallback((error: string) => {
+    const fixPrompt = `The Mermaid diagram has a render error. Please fix it.\n\nError: ${error}`
+    setInputText(fixPrompt)
+    requestAnimationFrame(() => {
+      chatPanelRef.current?.sendTextMessage(fixPrompt)
+      setInputText("")
+    })
+  }, [])
+
   return (
     <MermaidContextProvider value={mermaidContextValue}>
       <div className="h-full flex flex-col overflow-hidden">
         {/* Header with sidebar trigger for mobile/collapsed state */}
 
-        {(isMobile || isCollapsed) && <SidebarTrigger className="size-7" />}
+        {isClient && (isMobile || isCollapsed) && <SidebarTrigger className="size-7" />}
         {conversationId && (
           <div className="flex items-center rounded-xl absolute top-4 left-4">
             {isLoadingConversation ? (
@@ -109,6 +130,7 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
                 onSelectedMermaidMessageIdChange={setSelectedMermaidMessageId}
                 isLoadingConversation={isLoadingConversation}
                 onAppendInputText={handleAppendInputText}
+                onFixError={handleFixError}
               />
             </ResizablePanel>
 
@@ -121,7 +143,8 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
               className="max-h-screen"
             >
               <ChatPanel
-                key={conversationId ?? "empty"}
+                ref={chatPanelRef}
+                key={`${conversationId ?? "empty"}-${isLoadingConversation ? "loading" : "ready"}`}
                 conversationId={conversationId}
                 conversationDetail={conversationDetail}
                 isLoadingConversation={isLoadingConversation}

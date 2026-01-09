@@ -24,6 +24,7 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
+import dayjs from "dayjs"
 import { ChevronUp, MessageSquare, Monitor, Moon, Plus, Sun, Trash2 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { usePathname, useRouter } from "next/navigation"
@@ -245,7 +246,7 @@ function ConversationItem({
               {conversation.title || "Untitled Conversation"}
             </span>
             <span className="text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-muted">
-              {new Date(conversation.updatedAt).toLocaleDateString()}
+              {dayjs(conversation.updatedAt).format("YYYY-MM-DD HH:mm:ss")}
             </span>
           </>
         )}

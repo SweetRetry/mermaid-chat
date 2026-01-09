@@ -4,12 +4,20 @@ import type { Conversation } from "@/components/conversation/conversation-select
 import type { ReactNode } from "react"
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
 
+export interface PendingMessage {
+  text: string
+  files: Array<{ type: "file"; mediaType: string; url: string }>
+  model: string
+}
+
 interface ConversationsContextValue {
   conversations: Conversation[]
   isLoading: boolean
   refreshConversations: () => Promise<void>
   createConversation: (title?: string) => Promise<string | null>
   deleteConversation: (id: string) => Promise<void>
+  pendingMessage: PendingMessage | null
+  setPendingMessage: (message: PendingMessage | null) => void
 }
 
 const ConversationsContext = createContext<ConversationsContextValue | null>(null)
@@ -25,6 +33,7 @@ export function useConversationsContext() {
 export function ConversationsProvider({ children }: { children: ReactNode }) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null)
   const latestRequestRef = useRef(0)
 
   const refreshConversations = useCallback(async () => {
@@ -79,6 +88,8 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
         refreshConversations,
         createConversation,
         deleteConversation,
+        pendingMessage,
+        setPendingMessage,
       }}
     >
       {children}

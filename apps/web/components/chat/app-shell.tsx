@@ -18,14 +18,10 @@ interface AppShellProps {
   defaultLayout?: Layout
   groupId: string
   conversationId?: string
-  initialPrompt?: string
 }
 
-export function AppShell({ defaultLayout, groupId, conversationId, initialPrompt }: AppShellProps) {
-  // Skip loading for new conversations with initial prompt (they have no messages yet)
-  const { conversationDetail, isLoading: isLoadingConversation } = useConversation(
-    initialPrompt ? undefined : conversationId
-  )
+export function AppShell({ defaultLayout, groupId, conversationId }: AppShellProps) {
+  const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
   const [selectedMermaidMessageId, setSelectedMermaidMessageId] = useState<string | null>(null)
   const [latestMermaidCode, setLatestMermaidCode] = useState("")
   const [isMermaidUpdating, setIsMermaidUpdating] = useState(false)
@@ -127,7 +123,6 @@ export function AppShell({ defaultLayout, groupId, conversationId, initialPrompt
               <ChatPanel
                 key={conversationId ?? "empty"}
                 conversationId={conversationId}
-                initialPrompt={initialPrompt}
                 conversationDetail={conversationDetail}
                 isLoadingConversation={isLoadingConversation}
                 onSelectMermaidMessage={setSelectedMermaidMessageId}

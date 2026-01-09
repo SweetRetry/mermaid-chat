@@ -2,7 +2,7 @@
 import { useConversationsContext } from "@/components/conversation/conversations-context"
 import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import { useMermaidUpdates } from "@/hooks/use-mermaid-updates"
-import { convertToUIMessages, getMessageContent } from "@/lib/utils/message"
+import { convertToUIMessages } from "@/lib/utils/message"
 import type { ConversationDetail, StoredMessage } from "@/types/chat"
 import type { UpdateChartToolInput } from "@/types/tool"
 import { useChat } from "@ai-sdk/react"
@@ -13,17 +13,35 @@ import {
 } from "@workspace/ui/ai-elements/conversation"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
-import { DefaultChatTransport } from "ai"
+import { DefaultChatTransport, type FileUIPart } from "ai"
 import { MessageSquare } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
 
+async function filesToFileUIParts(files: File[]): Promise<FileUIPart[]> {
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise<FileUIPart>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            resolve({
+              type: "file",
+              mediaType: file.type,
+              url: reader.result as string,
+            })
+          }
+          reader.readAsDataURL(file)
+        })
+    )
+  )
+}
+
 interface ChatPanelProps {
   className?: string
   conversationId?: string
-  initialPrompt?: string
   conversationDetail: ConversationDetail | null
   isLoadingConversation: boolean
   onSelectMermaidMessage: (id: string | null) => void
@@ -34,7 +52,6 @@ interface ChatPanelProps {
 export function ChatPanel({
   className,
   conversationId,
-  initialPrompt,
   conversationDetail,
   isLoadingConversation,
   onSelectMermaidMessage,
@@ -45,28 +62,42 @@ export function ChatPanel({
 
   const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
 
-  const { refreshConversations } = useConversationsContext()
+  const { refreshConversations, pendingMessage, setPendingMessage } = useConversationsContext()
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
+
+  // Use refs to always get latest values in callbacks
+  const modelRef = useRef(model)
+  const chartRef = useRef(latestMermaidCode)
+  modelRef.current = model
+  chartRef.current = latestMermaidCode
+
+  // Apply pending message's model if present
+  useEffect(() => {
+    if (pendingMessage?.model) {
+      setModel(pendingMessage.model)
+    }
+  }, [pendingMessage?.model])
 
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: { currentChart: latestMermaidCode, model, conversationId },
         prepareSendMessagesRequest: (options) => {
+          // Only send the new user message, server fetches history from DB
           const lastMessage = options.messages[options.messages.length - 1]
-          const query = lastMessage ? getMessageContent(lastMessage) : ""
           return {
             ...options,
             body: {
-              ...options.body,
-              query,
+              currentChart: chartRef.current,
+              model: modelRef.current,
+              conversationId,
+              userMessage: lastMessage?.role === "user" ? lastMessage.parts : null,
             },
           }
         },
       }),
-    [latestMermaidCode, model, conversationId]
+    [conversationId]
   )
 
   const initialUIMessages = useMemo(() => convertToUIMessages(initialMessages), [initialMessages])
@@ -92,17 +123,32 @@ export function ChatPanel({
     }
   }, [initialUIMessages, setMessages, messages.length])
 
-  // Track if initial prompt has been sent - use ref to avoid re-render cycles
-  const initialPromptSentRef = useRef(false)
+  // Track if pending message has been sent
+  const pendingMessageSentRef = useRef(false)
 
-  // Send initial prompt once when ready - minimal dependencies
+  // Send pending message once when ready
   useEffect(() => {
-    if (!initialPrompt || !conversationId || initialPromptSentRef.current) return
+    if (!pendingMessage || !conversationId || pendingMessageSentRef.current) return
     if (status !== "ready") return
 
-    initialPromptSentRef.current = true
-    sendMessage({ text: initialPrompt })
-  }, [initialPrompt, conversationId, status]) // Intentionally exclude sendMessage to prevent re-triggering
+    pendingMessageSentRef.current = true
+
+    // Build parts from pending message
+    const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
+    if (pendingMessage.files.length > 0) {
+      parts.push(...pendingMessage.files)
+    }
+    if (pendingMessage.text.trim()) {
+      parts.push({ type: "text", text: pendingMessage.text })
+    }
+
+    if (parts.length > 0) {
+      sendMessage({ parts })
+    }
+
+    // Clear pending message after sending
+    setPendingMessage(null)
+  }, [pendingMessage, conversationId, status, setPendingMessage])
 
   // Handle mermaid diagram updates from messages via custom hook
   useMermaidUpdates(messages)
@@ -121,8 +167,8 @@ export function ChatPanel({
     )
   }
 
-  // Skip loading skeleton for new conversations with initial prompt
-  if (isLoadingConversation && !initialPrompt) {
+  // Skip loading skeleton for new conversations with pending message
+  if (isLoadingConversation && !pendingMessage) {
     return (
       <div className={cn("flex flex-col h-full", className)}>
         <div className="flex-1 p-4 space-y-6">
@@ -170,12 +216,21 @@ export function ChatPanel({
         <ChatInput
           input={inputText}
           onInputChange={onInputTextChange}
-          onSubmit={(text) => {
+          onSubmit={async (text, files) => {
             if (!conversationId) return
-            sendMessage({ text })
+            const fileParts = files ? await filesToFileUIParts(files) : []
+            const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
+            if (fileParts.length > 0) {
+              parts.push(...fileParts)
+            }
+            if (text.trim()) {
+              parts.push({ type: "text", text })
+            }
+            if (parts.length === 0) return
+            sendMessage({ parts })
             onInputTextChange("")
           }}
-          disabled={!inputText.trim() || !conversationId}
+          disabled={!conversationId}
           model={model}
           onModelChange={setModel}
         />

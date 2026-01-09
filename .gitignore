@@ -39,7 +39,3 @@ npm-debug.log*
 # Misc
 .DS_Store
 *.pem
-
-mermaid-chat.db
-mermaid-chat.db-shm
-mermaid-chat.db-wal

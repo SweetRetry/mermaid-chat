@@ -1,7 +1,10 @@
 "use client"
 
 import { ChatInput } from "@/components/chat/chat-input"
-import { useConversationsContext } from "@/components/conversation/conversations-context"
+import {
+  type PendingMessage,
+  useConversationsContext,
+} from "@/components/conversation/conversations-context"
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -26,21 +29,45 @@ const EXAMPLES = [
   },
 ] as const
 
+async function filesToParts(
+  files: File[]
+): Promise<Array<{ type: "file"; mediaType: string; url: string }>> {
+  return Promise.all(
+    files.map(
+      (file) =>
+        new Promise<{ type: "file"; mediaType: string; url: string }>((resolve) => {
+          const reader = new FileReader()
+          reader.onloadend = () => {
+            resolve({ type: "file", mediaType: file.type, url: reader.result as string })
+          }
+          reader.readAsDataURL(file)
+        })
+    )
+  )
+}
+
 export default function Page() {
   const router = useRouter()
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
   const [model, setModel] = useState("deepseek-chat")
-  const { createConversation } = useConversationsContext()
+  const { createConversation, setPendingMessage } = useConversationsContext()
 
-  const handleSubmit = async (prompt: string) => {
-    if (!prompt.trim()) return
+  const handleSubmit = async (text: string, files?: File[]) => {
+    if (!text.trim() && (!files || files.length === 0)) return
 
     startTransition(async () => {
+      // Convert files to base64 parts
+      const fileParts = files && files.length > 0 ? await filesToParts(files) : []
+
+      // Store pending message in context
+      const pending: PendingMessage = { text, files: fileParts, model }
+      setPendingMessage(pending)
+
+      // Create conversation and navigate
       const conversationId = await createConversation()
       if (conversationId) {
-        // Pass prompt via URL - event-driven, no intermediate store state
-        router.push(`/chat/${conversationId}?prompt=${encodeURIComponent(prompt)}`)
+        router.push(`/chat/${conversationId}`)
       }
     })
   }
@@ -52,7 +79,7 @@ export default function Page() {
         <div className="space-y-4 px-4">
           <div className="flex items-center gap-3 text-2xl md:text-3xl font-medium tracking-tight">
             <span className="text-yellow-400">✨</span>
-            <span className="text-foreground/80">ziming, 你好</span>
+            <span className="text-foreground/80">你好</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-semibold tracking-tight text-foreground/90">
             需要我为你做些什么？

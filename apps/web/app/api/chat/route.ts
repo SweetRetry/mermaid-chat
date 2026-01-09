@@ -1,19 +1,12 @@
 import type { Message } from "@/generated/prisma"
 import { prisma } from "@/lib/db"
 import { deepseek } from "@ai-sdk/deepseek"
-import {
-  type LanguageModel,
-  type ModelMessage,
-  type ToolUIPart,
-  type UIMessage,
-  convertToModelMessages,
-  createGateway,
-  streamText,
-  tool,
-} from "ai"
+import type { LanguageModelV3 } from "@ai-sdk/provider"
+import { type ModelMessage, type ToolUIPart, type UIMessage, streamText, tool } from "ai"
+import { volcengine } from "ai-sdk-volcengine-adapter"
 import { z } from "zod"
 
-export const maxDuration = 30
+export const maxDuration = 60
 
 const SYSTEM_PROMPT = `You are a helpful assistant specialized in creating and modifying Mermaid diagrams.
 
@@ -45,16 +38,17 @@ When modifying an existing chart, you will receive the current code. Apply incre
 
 Always respond in the same language as the user's message.`
 
-export type ModelId = "claude-sonnet" | "deepseek-chat"
+export type ModelId = "deepseek-chat" | "seed1.8"
 
-const gateway = createGateway({
-  apiKey: process.env.AI_GATEWAY_API_KEY,
-  baseURL: "https://ai-gateway.vercel.sh/v1/ai",
-})
-
-const MODELS: Record<ModelId, LanguageModel> = {
-  "claude-sonnet": gateway("anthropic/claude-sonnet-4-20250514"),
-  "deepseek-chat": deepseek("deepseek-chat"),
+function getModel(modelId: ModelId): LanguageModelV3 {
+  switch (modelId) {
+    case "seed1.8":
+      return volcengine('doubao-seed-1-8-251228')
+    case "deepseek-chat":
+      return deepseek(modelId)
+    default:
+      return deepseek(modelId)
+  }
 }
 
 const HISTORY_ROUNDS = 6
@@ -62,8 +56,6 @@ const HISTORY_MESSAGES = HISTORY_ROUNDS * 2
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null
-
-const stripUiMessageIds = (messages: UIMessage[]) => messages.map(({ id: _id, ...rest }) => rest)
 
 const parseStoredContent = (content: string): UIMessage["parts"] => {
   try {
@@ -74,7 +66,6 @@ const parseStoredContent = (content: string): UIMessage["parts"] => {
   } catch {
     // Fall through to plain text.
   }
-
   return content.trim() ? [{ type: "text" as const, text: content }] : []
 }
 
@@ -101,6 +92,28 @@ const TOOLS = {
   }),
 }
 
+type MessagePart = { type: "text"; text: string } | { type: "file"; mediaType: string; url: string }
+
+function extractTextFromParts(parts: MessagePart[]): string {
+  return parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("\n")
+}
+
+/**
+ * Convert UIMessages to ModelMessages for DeepSeek (AI SDK format).
+ */
+function convertToModelMessages(messages: UIMessage[]): ModelMessage[] {
+  return messages.map((msg): ModelMessage => {
+    const textContent = msg.parts
+      .filter((p): p is { type: "text"; text: string } => p.type === "text")
+      .map((p) => p.text)
+      .join("\n")
+    return { role: msg.role, content: textContent }
+  })
+}
+
 export async function POST(req: Request) {
   let payload: unknown
   try {
@@ -113,23 +126,21 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { query, currentChart, model, conversationId } = payload
+  const { userMessage, currentChart, model, conversationId } = payload
 
   if (typeof currentChart !== "string" && currentChart !== undefined) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
+  if (!Array.isArray(userMessage) || userMessage.length === 0) {
+    return new Response("Invalid request payload: missing user message", { status: 400 })
+  }
+
   const selectedModelId = (model as ModelId) ?? "deepseek-chat"
+  const userParts = userMessage as MessagePart[]
+  const userText = extractTextFromParts(userParts)
 
-  if (typeof query !== "string") {
-    return new Response("Invalid request payload", { status: 400 })
-  }
-
-  const lastUserText = query.trim()
-  if (!lastUserText) {
-    return new Response("Invalid request payload", { status: 400 })
-  }
-
+  // Build context messages
   let contextMessages: UIMessage[] = []
 
   if (typeof conversationId === "string") {
@@ -137,12 +148,7 @@ export async function POST(req: Request) {
       where: { conversationId },
       orderBy: { createdAt: "desc" },
       take: HISTORY_MESSAGES,
-      select: {
-        id: true,
-        role: true,
-        content: true,
-        createdAt: true,
-      },
+      select: { id: true, role: true, content: true },
     })
 
     const parsedStored = storedMessages
@@ -153,48 +159,33 @@ export async function POST(req: Request) {
         role: msg.role as "user" | "assistant",
         parts: parseStoredContent(msg.content),
       }))
-      .filter((msg: { parts: UIMessage["parts"] }) => msg.parts.length > 0)
+      .filter((msg) => msg.parts.length > 0)
 
-    const combined = [
+    contextMessages = [
       ...parsedStored,
-      {
-        id: crypto.randomUUID(),
-        role: "user" as const,
-        parts: [{ type: "text" as const, text: lastUserText }],
-      },
-    ]
-    contextMessages = combined.slice(-HISTORY_MESSAGES)
+      { id: crypto.randomUUID(), role: "user" as const, parts: userParts as UIMessage["parts"] },
+    ].slice(-HISTORY_MESSAGES)
   } else {
     contextMessages = [
-      {
-        id: crypto.randomUUID(),
-        role: "user" as const,
-        parts: [{ type: "text" as const, text: lastUserText }],
-      },
+      { id: crypto.randomUUID(), role: "user" as const, parts: userParts as UIMessage["parts"] },
     ]
   }
-
-  const modelMessages: ModelMessage[] = await convertToModelMessages(
-    stripUiMessageIds(contextMessages),
-    { tools: TOOLS }
-  )
 
   const systemPrompt =
     typeof currentChart === "string"
       ? `${SYSTEM_PROMPT}\n\nCurrent diagram code:\n\`\`\`mermaid\n${currentChart}\n\`\`\``
       : SYSTEM_PROMPT
 
-  const selectedModel = MODELS[selectedModelId] ?? MODELS["deepseek-chat"]
+  const modelMessages = convertToModelMessages(contextMessages)
 
   const result = streamText({
-    model: selectedModel,
+    model: getModel(selectedModelId),
     system: systemPrompt,
     messages: modelMessages,
     tools: TOOLS,
     async onFinish({ text, toolCalls, toolResults }) {
-      if (typeof conversationId !== "string" || !lastUserText) return
+      if (typeof conversationId !== "string" || userParts.length === 0) return
 
-      // Build assistant message parts
       const assistantParts: UIMessage["parts"] = []
       if (text) {
         assistantParts.push({ type: "text", text })
@@ -208,13 +199,10 @@ export async function POST(req: Request) {
             state: "output-available",
             input: "input" in tc ? tc.input : undefined,
             output: res && "output" in res ? res.output : undefined,
-            errorText:
-              res && "errorText" in res ? (res as { errorText?: string }).errorText : undefined,
           } as ToolUIPart)
         }
       }
 
-      // Extract latest chart code from tool results
       let latestChartCode: string | undefined
       if (toolResults) {
         const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
@@ -226,38 +214,26 @@ export async function POST(req: Request) {
         }
       }
 
-      // Use transaction to batch all database operations
       await prisma.$transaction(async (tx) => {
-        // Check if this is the first message and update title
         const existingMessage = await tx.message.findFirst({
           where: { conversationId },
           select: { id: true },
         })
 
-        if (!existingMessage) {
+        if (!existingMessage && userText) {
           await tx.conversation.update({
             where: { id: conversationId },
-            data: { title: generateTitle(lastUserText) },
+            data: { title: generateTitle(userText) },
           })
         }
 
-        // Create both messages in batch
         await tx.message.createMany({
           data: [
-            {
-              conversationId,
-              role: "user",
-              content: JSON.stringify([{ type: "text", text: lastUserText }]),
-            },
-            {
-              conversationId,
-              role: "assistant",
-              content: JSON.stringify(assistantParts),
-            },
+            { conversationId, role: "user", content: JSON.stringify(userParts) },
+            { conversationId, role: "assistant", content: JSON.stringify(assistantParts) },
           ],
         })
 
-        // Update conversation timestamp and latestChartCode if available
         await tx.conversation.update({
           where: { id: conversationId },
           data: {

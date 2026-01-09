@@ -213,6 +213,7 @@ export function ChatPanel({
             onInputTextChange("")
           }}
           disabled={!conversationId}
+          status={status}
           model={model}
           onModelChange={setModel}
         />

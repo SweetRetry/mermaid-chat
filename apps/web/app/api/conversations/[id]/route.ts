@@ -5,11 +5,6 @@ interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-interface MessagePart {
-  type: string
-  output?: { code?: string }
-}
-
 export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
@@ -26,7 +21,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
-  const { messages, ...rest } = conversation
+  const { messages, latestChartCode, ...rest } = conversation
 
   // Parse message content from JSON to restore full message parts
   const parsedMessages = messages.map((msg) => {
@@ -47,23 +42,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
     }
   })
 
-  // Extract latest chart from messages
-  let latestMermaidCode: string | null = null
-  for (let i = parsedMessages.length - 1; i >= 0; i--) {
-    const msg = parsedMessages[i]
-    if (msg?.role !== "assistant") continue
-    const parts = msg.parts as MessagePart[]
-    const chartPart = parts.find((p) => p.type === "tool-update_chart")
-    if (chartPart?.output?.code) {
-      latestMermaidCode = chartPart.output.code
-      break
-    }
-  }
-
   return NextResponse.json({
     ...rest,
     messages: parsedMessages,
-    latestChart: latestMermaidCode ? { mermaidCode: latestMermaidCode } : null,
+    latestChart: latestChartCode ? { mermaidCode: latestChartCode } : null,
   })
 }
 

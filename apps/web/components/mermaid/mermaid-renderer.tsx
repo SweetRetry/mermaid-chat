@@ -113,38 +113,18 @@ export function MermaidRenderer({
   }, [code, onSvgChange, isUpdating])
 
   // Plugin context
-  const ctx: MermaidPluginContext = {
-    code,
-    svg: svg || lastValidSvg,
-    containerRef,
-    isUpdating,
-    isParsing,
-  }
+  const ctx: MermaidPluginContext = useMemo(
+    () => ({
+      code,
+      svg: svg || lastValidSvg,
+      containerRef,
+      isUpdating,
+      isParsing,
+    }),
+    [code, svg, lastValidSvg, isUpdating, isParsing]
+  )
 
-  // Notify plugins on render
-  useEffect(() => {
-    if (svg) {
-      plugins.forEach((plugin) => plugin.onRender?.(ctx))
-    }
-  }, [svg, plugins])
-
-  if (!code.trim()) {
-    return null
-  }
-
-  // Error state
-  if (error && showError) {
-    return (
-      <div className={cn("flex items-center justify-center h-full p-4", className)}>
-        <div className="text-destructive text-sm bg-destructive/10 p-4 rounded-md max-w-md">
-          <p className="font-medium mb-1">Render Error</p>
-          <p className="text-xs opacity-80">{error}</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Merge container props from plugins (avoid spread in accumulator for performance)
+  // Merge container props from plugins (must be before any conditional returns)
   const mergedContainerProps = useMemo(() => {
     const classNames: (string | undefined)[] = []
     const styles: React.CSSProperties[] = []
@@ -166,6 +146,29 @@ export function MermaidRenderer({
       style: Object.assign({}, ...styles),
     } as React.HTMLAttributes<HTMLDivElement>
   }, [plugins, ctx])
+
+  // Notify plugins on render (must be before any conditional returns)
+  useEffect(() => {
+    if (svg) {
+      plugins.forEach((plugin) => plugin.onRender?.(ctx))
+    }
+  }, [svg, plugins, ctx])
+
+  // Early returns after all hooks
+  if (!code.trim()) {
+    return null
+  }
+
+  if (error && showError) {
+    return (
+      <div className={cn("flex items-center justify-center h-full p-4", className)}>
+        <div className="text-destructive text-sm bg-destructive/10 p-4 rounded-md max-w-md">
+          <p className="font-medium mb-1">Render Error</p>
+          <p className="text-xs opacity-80">{error}</p>
+        </div>
+      </div>
+    )
+  }
 
   // Core SVG container
   let svgContainer = (

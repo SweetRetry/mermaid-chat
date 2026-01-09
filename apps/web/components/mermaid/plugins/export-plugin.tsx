@@ -1,10 +1,10 @@
 "use client"
 
-import type { MermaidPlugin, MermaidPluginContext } from "../mermaid-renderer"
 import { exportSvgToPng } from "@/lib/utils/svg-export"
 import { Button } from "@workspace/ui/components/button"
 import { Check, Copy, Download } from "lucide-react"
 import { useState } from "react"
+import type { MermaidPlugin, MermaidPluginContext } from "../mermaid-renderer"
 
 function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
   const [copied, setCopied] = useState(false)
@@ -28,7 +28,7 @@ function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
 
   return (
     <div
-      className="absolute bottom-4 right-4 flex flex-col gap-1 p-1.5 bg-background/80 backdrop-blur-md rounded-xl border shadow-xl z-20"
+      className="absolute top-4 right-14 flex flex-row gap-1 p-1 bg-background/80 backdrop-blur-md rounded-xl border shadow-sm z-20"
       onPointerDown={(e) => e.stopPropagation()}
     >
       <Button

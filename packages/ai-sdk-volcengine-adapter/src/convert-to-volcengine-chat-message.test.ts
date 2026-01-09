@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { convertToVolcengineChatMessages } from "./convert-to-volcengine-chat-message";
 
 describe("convertToVolcengineChatMessages", () => {

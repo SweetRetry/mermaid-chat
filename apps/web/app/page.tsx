@@ -5,6 +5,7 @@ import {
   type PendingMessage,
   useConversationsContext,
 } from "@/components/conversation/conversations-context"
+import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Button } from "@workspace/ui/components/button"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -29,39 +30,23 @@ const EXAMPLES = [
   },
 ] as const
 
-async function filesToParts(
-  files: File[]
-): Promise<Array<{ type: "file"; mediaType: string; url: string }>> {
-  return Promise.all(
-    files.map(
-      (file) =>
-        new Promise<{ type: "file"; mediaType: string; url: string }>((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            resolve({ type: "file", mediaType: file.type, url: reader.result as string })
-          }
-          reader.readAsDataURL(file)
-        })
-    )
-  )
-}
-
 export default function Page() {
   const router = useRouter()
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
-  const [model, setModel] = useState("deepseek-chat")
+  const [model, setModel] = useState("seed1.8")
   const { createConversation, setPendingMessage } = useConversationsContext()
 
-  const handleSubmit = async (text: string, files?: File[]) => {
-    if (!text.trim() && (!files || files.length === 0)) return
+  const handleSubmit = (message: PromptInputMessage) => {
+    if (!message.text.trim() && message.files.length === 0) return
 
     startTransition(async () => {
-      // Convert files to base64 parts
-      const fileParts = files && files.length > 0 ? await filesToParts(files) : []
-
-      // Store pending message in context
-      const pending: PendingMessage = { text, files: fileParts, model }
+      // Store pending message in context (files are already FileUIPart from PromptInput)
+      const pending: PendingMessage = {
+        text: message.text,
+        files: message.files,
+        model,
+      }
       setPendingMessage(pending)
 
       // Create conversation and navigate
@@ -70,6 +55,10 @@ export default function Page() {
         router.push(`/chat/${conversationId}`)
       }
     })
+  }
+
+  const handleExampleClick = (prompt: string) => {
+    handleSubmit({ text: prompt, files: [] })
   }
 
   return (
@@ -109,7 +98,7 @@ export default function Page() {
               variant="outline"
               className="rounded-full h-11 px-6 bg-secondary/50 border-none hover:bg-secondary/80 transition-all text-sm font-medium flex items-center gap-2"
               disabled={isPending}
-              onClick={() => handleSubmit(example.prompt)}
+              onClick={() => handleExampleClick(example.prompt)}
             >
               {example.label === "User Login Flow" && <span className="text-lg">🍌</span>}
               {example.label === "API Sequence" && <span className="text-lg">📝</span>}

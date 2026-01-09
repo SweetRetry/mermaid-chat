@@ -16,8 +16,6 @@
     "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
-    "@ai-sdk/deepseek": "^2.0.4",
-    "@ai-sdk/provider": "^3.0.2",
     "ai-sdk-volcengine-adapter": "workspace:*",
     "openai": "^6.15.0",
     "@ai-sdk/react": "^3.0.19",

@@ -1,13 +1,25 @@
 import {
-  InvalidPromptError,
+  LanguageModelV3DataContent,
   LanguageModelV3Prompt,
   UnsupportedFunctionalityError
 } from "@ai-sdk/provider";
+import { convertToBase64 } from "@ai-sdk/provider-utils";
 import {
-  VolcengineChatMessage,
+  VolcengineChatAssistantMessage,
   VolcengineChatPrompt,
   VolcengineChatUserMessageContent
 } from "./volcengine-chat-prompt";
+
+function formatDataUrl(data: LanguageModelV3DataContent, mediaType: string): string {
+  if (data instanceof URL) {
+    return data.toString();
+  }
+  if (typeof data === "string") {
+    return data.startsWith("data:") ? data : `data:${mediaType};base64,${data}`;
+  }
+  return `data:${mediaType};base64,${convertToBase64(data)}`;
+}
+
 
 export function convertToVolcengineChatMessages(
   prompt: LanguageModelV3Prompt
@@ -25,90 +37,59 @@ export function convertToVolcengineChatMessages(
       }
 
       case "user": {
-        const content: VolcengineChatUserMessageContent[] = [];
+        messages.push({
+          role: "user",
+          content: message.content.map((part): VolcengineChatUserMessageContent => {
+            switch (part.type) {
+              case "text":
+                return { type: "text", text: part.text };
 
-        for (const part of message.content) {
-          switch (part.type) {
-            case "text": {
-              content.push({ type: "text", text: part.text });
-              break;
-            }
-            case "file": {
-              const mediaType = part.mediaType;
+              case "file": {
+                const { mediaType, data } = part;
 
-              if (mediaType.startsWith("image/")) {
-                // Handle image files
-                if (part.data instanceof URL) {
-                  content.push({
+                if (mediaType.startsWith("image/")) {
+                  return {
                     type: "image_url",
-                    image_url: { url: part.data.toString() }
-                  });
-                } else {
-                  const base64Data =
-                    typeof part.data === "string"
-                      ? part.data
-                      : Buffer.from(part.data).toString("base64");
-                  content.push({
-                    type: "image_url",
-                    image_url: { url: `data:${mediaType};base64,${base64Data}` }
-                  });
+                    image_url: { url: formatDataUrl(data, mediaType) }
+                  };
                 }
-              } else if (mediaType.startsWith("video/")) {
-                // Handle video files
-                if (part.data instanceof URL) {
-                  content.push({
+                if (mediaType.startsWith("video/")) {
+                  return {
                     type: "video_url",
-                    video_url: { url: part.data.toString() }
-                  });
-                } else {
-                  const base64Data =
-                    typeof part.data === "string"
-                      ? part.data
-                      : Buffer.from(part.data).toString("base64");
-                  content.push({
-                    type: "video_url",
-                    video_url: { url: `data:${mediaType};base64,${base64Data}` }
-                  });
+                    video_url: { url: formatDataUrl(data, mediaType) }
+                  };
                 }
-              } else {
                 throw new UnsupportedFunctionalityError({
                   functionality: `File type: ${mediaType}`
                 });
               }
-              break;
-            }
-            default: {
-              throw new UnsupportedFunctionalityError({
-                functionality: `User message part type: ${(part as any).type}`
-              });
-            }
-          }
-        }
 
-        messages.push({ role: "user", content });
+              default: {
+                const _exhaustiveCheck: never = part;
+                throw new UnsupportedFunctionalityError({
+                  functionality: `User message part type: ${(_exhaustiveCheck as { type: string }).type}`
+                });
+              }
+            }
+          })
+        });
         break;
       }
 
       case "assistant": {
-        let textContent = "";
+        let text = "";
         let reasoningContent: string | undefined;
-        const toolCalls: Array<{
-          id: string;
-          type: "function";
-          function: { name: string; arguments: string };
-        }> = [];
+        const toolCalls: VolcengineChatAssistantMessage["tool_calls"] = [];
 
         for (const part of message.content) {
           switch (part.type) {
-            case "text": {
-              textContent += part.text;
+            case "text":
+              text += part.text;
               break;
-            }
-            case "reasoning": {
+            case "reasoning":
               reasoningContent = (reasoningContent ?? "") + part.text;
               break;
-            }
-            case "tool-call": {
+            case "tool-call":
               toolCalls.push({
                 id: part.toolCallId,
                 type: "function",
@@ -121,82 +102,69 @@ export function convertToVolcengineChatMessages(
                 }
               });
               break;
-            }
             case "file":
-            case "tool-result": {
-              // Skip these in assistant messages
+            case "tool-result":
+              // Skip file and tool-result in assistant messages
               break;
-            }
             default: {
+              const _exhaustiveCheck: never = part;
               throw new UnsupportedFunctionalityError({
-                functionality: `Assistant message part type: ${(part as any).type}`
+                functionality: `Assistant message part type: ${(_exhaustiveCheck as { type: string }).type}`
               });
             }
           }
         }
 
-        const assistantMessage: VolcengineChatMessage = {
+        messages.push({
           role: "assistant",
-          content: textContent
-        };
-
-        if (reasoningContent) {
-          (assistantMessage as any).reasoning_content = reasoningContent;
-        }
-
-        if (toolCalls.length > 0) {
-          (assistantMessage as any).tool_calls = toolCalls;
-        }
-
-        messages.push(assistantMessage);
+          content: text,
+          reasoning_content: reasoningContent,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined
+        });
         break;
       }
 
       case "tool": {
-        for (const toolResult of message.content) {
-          if (toolResult.type === "tool-result") {
-            const output = toolResult.output;
-            let contentString: string;
-
-            switch (output.type) {
-              case "text":
-              case "error-text":
-                contentString = output.value;
-                break;
-              case "json":
-              case "error-json":
-                contentString = JSON.stringify(output.value);
-                break;
-              case "execution-denied":
-                contentString = output.reason ?? "Execution denied";
-                break;
-              case "content":
-                contentString = output.value
-                  .map((v) => {
-                    if (v.type === "text") return v.text;
-                    return JSON.stringify(v);
-                  })
-                  .join("\n");
-                break;
-              default:
-                contentString = JSON.stringify(output);
-            }
-
-            messages.push({
-              role: "tool",
-              tool_call_id: toolResult.toolCallId,
-              content: contentString
-            });
+        for (const toolResponse of message.content) {
+          if (toolResponse.type === "tool-approval-response") {
+            continue;
           }
-          // Skip tool-approval-response parts
+
+          const { output } = toolResponse;
+          let content: string;
+
+          switch (output.type) {
+            case "text":
+            case "error-text":
+              content = output.value;
+              break;
+            case "json":
+            case "error-json":
+              content = JSON.stringify(output.value);
+              break;
+            case "execution-denied":
+              content = output.reason ?? "Tool execution denied.";
+              break;
+            case "content":
+              content = output.value
+                .map((v) => (v.type === "text" ? v.text : JSON.stringify(v)))
+                .join("\n");
+              break;
+          }
+
+          messages.push({
+            role: "tool",
+            tool_call_id: toolResponse.toolCallId,
+            content
+          });
         }
         break;
       }
 
       default: {
-        throw new InvalidPromptError({
-          prompt,
-          message: `Unsupported message role: ${(message as any).role}`
+        const _exhaustiveCheck: never = message;
+        throw new UnsupportedFunctionalityError({
+          functionality: `Message role: ${(_exhaustiveCheck as { role: string }).role}`
         });
       }
     }

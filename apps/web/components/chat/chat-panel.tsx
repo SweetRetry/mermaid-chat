@@ -13,6 +13,7 @@ import {
 } from "@workspace/ui/ai-elements/conversation"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
+import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { DefaultChatTransport, type FileUIPart } from "ai"
 import { MessageSquare } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -20,24 +21,6 @@ import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
 
-async function filesToFileUIParts(files: File[]): Promise<FileUIPart[]> {
-  return Promise.all(
-    files.map(
-      (file) =>
-        new Promise<FileUIPart>((resolve) => {
-          const reader = new FileReader()
-          reader.onloadend = () => {
-            resolve({
-              type: "file",
-              mediaType: file.type,
-              url: reader.result as string,
-            })
-          }
-          reader.readAsDataURL(file)
-        })
-    )
-  )
-}
 
 interface ChatPanelProps {
   className?: string
@@ -58,7 +41,7 @@ export function ChatPanel({
   inputText,
   onInputTextChange,
 }: ChatPanelProps) {
-  const [model, setModel] = useState("deepseek-chat")
+  const [model, setModel] = useState("seed1.8")
 
   const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
 
@@ -216,15 +199,14 @@ export function ChatPanel({
         <ChatInput
           input={inputText}
           onInputChange={onInputTextChange}
-          onSubmit={async (text, files) => {
+          onSubmit={(message: PromptInputMessage) => {
             if (!conversationId) return
-            const fileParts = files ? await filesToFileUIParts(files) : []
             const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
-            if (fileParts.length > 0) {
-              parts.push(...fileParts)
+            if (message.files.length > 0) {
+              parts.push(...message.files)
             }
-            if (text.trim()) {
-              parts.push({ type: "text", text })
+            if (message.text.trim()) {
+              parts.push({ type: "text", text: message.text })
             }
             if (parts.length === 0) return
             sendMessage({ parts })

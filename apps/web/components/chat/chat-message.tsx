@@ -10,7 +10,12 @@ import {
   MessageContent,
   MessageResponse,
 } from "@workspace/ui/ai-elements/message"
-import type { FileUIPart } from "ai"
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@workspace/ui/ai-elements/reasoning"
+import type { FileUIPart, ReasoningUIPart } from "ai"
 import { ToolCallRenderer } from "./tool-call-renderer"
 
 interface ChatMessageProps {
@@ -27,6 +32,12 @@ export function ChatMessage({ message, onSelectMermaidMessage }: ChatMessageProp
 
   const fileParts = (message.parts || []).filter((part) => part.type === "file") as FileUIPart[]
 
+  const reasoningParts = (message.parts || []).filter(
+    (part) => part.type === "reasoning"
+  ) as ReasoningUIPart[]
+
+  const reasoningText = reasoningParts.map((p) => p.text).join("\n")
+
   return (
     <Message from={message.role}>
       {fileParts.length > 0 && (
@@ -37,6 +48,12 @@ export function ChatMessage({ message, onSelectMermaidMessage }: ChatMessageProp
         </MessageAttachments>
       )}
       <MessageContent>
+        {reasoningText && (
+          <Reasoning>
+            <ReasoningTrigger />
+            <ReasoningContent>{reasoningText}</ReasoningContent>
+          </Reasoning>
+        )}
         {message.role === "assistant" ? (
           <MessageResponse>{content}</MessageResponse>
         ) : (

@@ -4,7 +4,6 @@ export interface Model {
 }
 
 export const MODELS: readonly Model[] = [
-  { id: "deepseek-chat", name: "DeepSeek" },
   { id: "seed1.8", name: "Seed 1.8" },
 ] as const
 

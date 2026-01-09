@@ -1,8 +1,16 @@
 import type { Message } from "@/generated/prisma"
 import { prisma } from "@/lib/db"
-import { deepseek } from "@ai-sdk/deepseek"
-import type { LanguageModelV3 } from "@ai-sdk/provider"
-import { type ModelMessage, type ToolUIPart, type UIMessage, streamText, tool } from "ai"
+import {
+  FilePart,
+  FileUIPart,
+  type ModelMessage,
+  TextPart,
+  TextUIPart,
+  type ToolUIPart,
+  type UIMessage,
+  streamText,
+  tool,
+} from "ai"
 import { volcengine } from "ai-sdk-volcengine-adapter"
 import { z } from "zod"
 
@@ -22,6 +30,10 @@ When the user asks you to create or modify a diagram:
 4. Keep the original structure and content unless a change is explicitly requested.
 5. If a new request conflicts with prior requirements, ask a clarifying question instead of deleting or altering content.
 
+IMPORTANT: When providing code to the update_chart tool:
+- Do NOT wrap the code in markdown code fences (\`\`\`mermaid or \`\`\`)
+- Provide ONLY the raw Mermaid diagram code starting with the diagram type (e.g., "flowchart TD", "sequenceDiagram", etc.)
+
 If the user is only asking questions, explanations, or analysis about the existing diagram, do not call the update_chart tool.
 
 Supported diagram types:
@@ -38,17 +50,25 @@ When modifying an existing chart, you will receive the current code. Apply incre
 
 Always respond in the same language as the user's message.`
 
-export type ModelId = "deepseek-chat" | "seed1.8"
+/**
+ * Strip markdown code fences from mermaid code if present.
+ * Handles both \`\`\`mermaid ... \`\`\` and \`\`\` ... \`\`\` formats.
+ */
+function stripCodeFences(code: string): string {
+  const trimmed = code.trim()
+  // Match ```mermaid or just ``` at the start, and ``` at the end
+  const match = trimmed.match(/^```(?:mermaid)?\s*\n?([\s\S]*?)\n?```$/i)
+  return match?.[1]?.trim() ?? trimmed
+}
 
-function getModel(modelId: ModelId): LanguageModelV3 {
-  switch (modelId) {
-    case "seed1.8":
-      return volcengine('doubao-seed-1-8-251228')
-    case "deepseek-chat":
-      return deepseek(modelId)
-    default:
-      return deepseek(modelId)
-  }
+export type ModelId = "seed1.8"
+
+const MODEL_MAP: Record<ModelId, string> = {
+  "seed1.8": "doubao-seed-1-8-251228",
+}
+
+function getModel(modelId: ModelId) {
+  return volcengine(MODEL_MAP[modelId] ?? MODEL_MAP["seed1.8"])
 }
 
 const HISTORY_ROUNDS = 6
@@ -83,34 +103,69 @@ const TOOLS = {
     inputSchema: z.object({
       code: z
         .string()
-        .describe("The complete Mermaid diagram code, including the diagram type declaration"),
+        .describe(
+          "Raw Mermaid diagram code WITHOUT markdown code fences. Must start directly with diagram type (e.g., 'flowchart TD', 'sequenceDiagram'). Do NOT include ``` or ```mermaid."
+        ),
       description: z.string().describe("Brief description of what was created or changed"),
     }),
     execute: async ({ code, description }: { code: string; description: string }) => {
-      return { success: true, code, description }
+      // Strip markdown code fences if the AI included them
+      const cleanCode = stripCodeFences(code)
+      return { success: true, code: cleanCode, description }
     },
   }),
 }
 
-type MessagePart = { type: "text"; text: string } | { type: "file"; mediaType: string; url: string }
+type MessagePart = TextUIPart | FileUIPart
+
+type ModelContentPart = TextPart | FilePart
 
 function extractTextFromParts(parts: MessagePart[]): string {
   return parts
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .filter((p): p is TextUIPart => p.type === "text")
     .map((p) => p.text)
     .join("\n")
 }
 
 /**
- * Convert UIMessages to ModelMessages for DeepSeek (AI SDK format).
+ * Convert UIMessages to ModelMessages with multimodal support.
+ * Files use type: "file" with data and mediaType (AI SDK V3 format).
  */
 function convertToModelMessages(messages: UIMessage[]): ModelMessage[] {
   return messages.map((msg): ModelMessage => {
-    const textContent = msg.parts
-      .filter((p): p is { type: "text"; text: string } => p.type === "text")
-      .map((p) => p.text)
-      .join("\n")
-    return { role: msg.role, content: textContent }
+    const contentParts: ModelContentPart[] = []
+
+    for (const part of msg.parts) {
+      if (part.type === "text") {
+        contentParts.push({ type: "text", text: part.text })
+      } else if (part.type === "file") {
+        const filePart = part as { type: "file"; mediaType: string; url: string }
+        // Images and videos as file parts with data and mediaType
+        if (filePart.mediaType.startsWith("image/") || filePart.mediaType.startsWith("video/")) {
+          contentParts.push({
+            type: "file",
+            data: filePart.url,
+            mediaType: filePart.mediaType,
+          })
+        }
+      }
+    }
+
+    // If no content parts, return empty text
+    if (contentParts.length === 0) {
+      return { role: msg.role, content: "" }
+    }
+
+    // If only text parts, return as simple string for compatibility
+    if (contentParts.every((p) => p.type === "text")) {
+      return {
+        role: msg.role,
+        content: contentParts.map((p) => (p as { type: "text"; text: string }).text).join("\n"),
+      }
+    }
+
+    // Return multimodal content
+    return { role: msg.role, content: contentParts } as ModelMessage
   })
 }
 
@@ -136,7 +191,7 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload: missing user message", { status: 400 })
   }
 
-  const selectedModelId = (model as ModelId) ?? "deepseek-chat"
+  const selectedModelId = (model as ModelId) ?? "seed1.8"
   const userParts = userMessage as MessagePart[]
   const userText = extractTextFromParts(userParts)
 
@@ -183,7 +238,7 @@ export async function POST(req: Request) {
     system: systemPrompt,
     messages: modelMessages,
     tools: TOOLS,
-    async onFinish({ text, toolCalls, toolResults }) {
+    async onFinish({ text, reasoning, toolCalls, toolResults }) {
       if (typeof conversationId !== "string" || userParts.length === 0) return
 
       const assistantParts: UIMessage["parts"] = []
@@ -214,6 +269,12 @@ export async function POST(req: Request) {
         }
       }
 
+      // Extract reasoning text from reasoning parts
+      const reasoningText = reasoning
+        ?.filter((r): r is { type: "reasoning"; text: string } => r.type === "reasoning")
+        .map((r) => r.text)
+        .join("")
+
       await prisma.$transaction(async (tx) => {
         const existingMessage = await tx.message.findFirst({
           where: { conversationId },
@@ -230,7 +291,12 @@ export async function POST(req: Request) {
         await tx.message.createMany({
           data: [
             { conversationId, role: "user", content: JSON.stringify(userParts) },
-            { conversationId, role: "assistant", content: JSON.stringify(assistantParts) },
+            {
+              conversationId,
+              role: "assistant",
+              content: JSON.stringify(assistantParts),
+              reasoning: reasoningText || null,
+            },
           ],
         })
 

@@ -9,13 +9,7 @@ import {
 } from "@/lib/api/conversations"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { ReactNode } from "react"
-import { createContext, useContext, useState } from "react"
-
-export interface PendingMessage {
-  text: string
-  files: Array<{ type: "file"; mediaType: string; url: string }>
-  model: string
-}
+import { createContext, useContext } from "react"
 
 interface ConversationsContextValue {
   conversations: Conversation[]
@@ -23,8 +17,6 @@ interface ConversationsContextValue {
   refreshConversations: () => Promise<void>
   createConversation: (title?: string) => Promise<string | null>
   deleteConversation: (id: string) => Promise<void>
-  pendingMessage: PendingMessage | null
-  setPendingMessage: (message: PendingMessage | null) => void
 }
 
 const ConversationsContext = createContext<ConversationsContextValue | null>(null)
@@ -39,7 +31,6 @@ export function useConversationsContext() {
 
 export function ConversationsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null)
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: conversationKeys.list(),
@@ -91,8 +82,6 @@ export function ConversationsProvider({ children }: { children: ReactNode }) {
         refreshConversations,
         createConversation,
         deleteConversation,
-        pendingMessage,
-        setPendingMessage,
       }}
     >
       {children}

@@ -20,9 +20,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select"
-import type { FileUIPart } from "ai"
 import { cn } from "@workspace/ui/lib/utils"
-import { Brain, Paperclip } from "lucide-react"
+import type { FileUIPart } from "ai"
+import { Brain, Globe, Paperclip } from "lucide-react"
 
 const ACCEPT_STRING = "image/*,video/*,text/markdown,.md"
 
@@ -38,6 +38,8 @@ interface ChatInputProps {
   onModelChange: (value: string) => void
   thinking?: boolean
   onThinkingChange?: (value: boolean) => void
+  webSearch?: boolean
+  onWebSearchChange?: (value: boolean) => void
 }
 
 function AttachmentButton({ disabled }: { disabled: boolean }) {
@@ -68,6 +70,24 @@ function ThinkingButton({
       className={cn(active && "bg-primary/10 text-primary")}
     >
       <Brain className="size-4" />
+    </PromptInputButton>
+  )
+}
+
+function WebSearchButton({
+  active,
+  onToggle,
+}: {
+  active: boolean
+  onToggle: () => void
+}) {
+  return (
+    <PromptInputButton
+      onClick={onToggle}
+      title={active ? "关闭联网搜索" : "开启联网搜索"}
+      className={cn(active && "bg-primary/10 text-primary")}
+    >
+      <Globe className="size-4" />
     </PromptInputButton>
   )
 }
@@ -111,12 +131,18 @@ export function ChatInput({
   onModelChange,
   thinking = false,
   onThinkingChange,
+  webSearch = false,
+  onWebSearchChange,
   className,
 }: ChatInputProps) {
   const supportsFiles = model === "seed1.8"
 
   const handleThinkingToggle = () => {
     onThinkingChange?.(!thinking)
+  }
+
+  const handleWebSearchToggle = () => {
+    onWebSearchChange?.(!webSearch)
   }
 
   const handleSubmit = async (message: PromptInputMessage) => {
@@ -141,15 +167,13 @@ export function ChatInput({
       <PromptInputFooter>
         <AttachmentButton disabled={!supportsFiles} />
         <ThinkingButton active={thinking} onToggle={handleThinkingToggle} />
+        <WebSearchButton active={webSearch} onToggle={handleWebSearchToggle} />
 
         <div className="flex-1" />
 
         <div className="flex items-center gap-3">
           <Select value={model} onValueChange={onModelChange}>
-            <SelectTrigger
-              size="sm"
-              className="min-w-28 rounded-full border-none bg-muted/50 hover:bg-muted transition-colors"
-            >
+            <SelectTrigger size="sm">
               <SelectValue placeholder="Model" />
             </SelectTrigger>
             <SelectContent>

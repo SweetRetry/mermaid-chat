@@ -3,6 +3,7 @@ import { useConversationsContext } from "@/components/conversation/conversations
 import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import { useMermaidUpdates } from "@/hooks/use-mermaid-updates"
 import { convertToUIMessages } from "@/lib/utils/message"
+import { type PendingMessage, loadPendingMessage } from "@/lib/utils/pending-message"
 import type { ConversationDetail, StoredMessage } from "@/types/chat"
 import type { UpdateChartToolInput } from "@/types/tool"
 import { useChat } from "@ai-sdk/react"
@@ -15,8 +16,7 @@ import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport, type FileUIPart } from "ai"
-import { MessageSquare } from "lucide-react"
-import { forwardRef, useEffect, useEffectEvent, useImperativeHandle, useMemo, useRef, useState } from "react"
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
@@ -48,11 +48,17 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   ref
 ) {
   const { latestMermaidCode, setLatestMermaidCode } = useMermaidContext()
-  const { refreshConversations, pendingMessage, setPendingMessage } = useConversationsContext()
+  const { refreshConversations } = useConversationsContext()
 
-  // Initialize model from pendingMessage if available (lazy initializer avoids useEffect sync)
+  // Load pending message from sessionStorage once on mount
+  const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(() =>
+    loadPendingMessage()
+  )
+
+  // Initialize model from pendingMessage if available
   const [model, setModel] = useState(() => pendingMessage?.model ?? "seed1.8")
   const [thinking, setThinking] = useState(false)
+  const [webSearch, setWebSearch] = useState(false)
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -60,9 +66,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const modelRef = useRef(model)
   const chartRef = useRef(latestMermaidCode)
   const thinkingRef = useRef(thinking)
+  const webSearchRef = useRef(webSearch)
   modelRef.current = model
   chartRef.current = latestMermaidCode
   thinkingRef.current = thinking
+  webSearchRef.current = webSearch
 
   const transport = useMemo(
     () =>
@@ -77,6 +85,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               currentChart: chartRef.current,
               model: modelRef.current,
               thinking: thinkingRef.current,
+              webSearch: webSearchRef.current,
               conversationId,
               userMessage: lastMessage?.role === "user" ? lastMessage.parts : null,
             },
@@ -103,58 +112,36 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     },
   })
 
-  useImperativeHandle(ref, () => ({
-    sendTextMessage: (text: string) => {
-      if (!text.trim() || status !== "ready") return
-      sendMessage({ parts: [{ type: "text", text }] })
-    },
-  }), [sendMessage, status])
+  useImperativeHandle(
+    ref,
+    () => ({
+      sendTextMessage: (text: string) => {
+        if (!text.trim() || status !== "ready") return
+        sendMessage({ parts: [{ type: "text", text }] })
+      },
+    }),
+    [sendMessage, status]
+  )
 
-  // Track if pending message has been sent
-  const pendingMessageSentRef = useRef(false)
+  // Send pending message once when ready
+  useEffect(() => {
+    if (!pendingMessage || !conversationId || status !== "ready") return
 
-  // Event handler for sending pending message (non-reactive)
-  const onSendPendingMessage = useEffectEvent((pending: NonNullable<typeof pendingMessage>) => {
     const parts: Array<{ type: "text"; text: string } | FileUIPart> = []
-    if (pending.files.length > 0) {
-      parts.push(...pending.files)
+    if (pendingMessage.files.length > 0) {
+      parts.push(...pendingMessage.files)
     }
-    if (pending.text.trim()) {
-      parts.push({ type: "text", text: pending.text })
+    if (pendingMessage.text.trim()) {
+      parts.push({ type: "text", text: pendingMessage.text })
     }
     if (parts.length > 0) {
       sendMessage({ parts })
     }
     setPendingMessage(null)
-  })
-
-  // Send pending message once when ready
-  useEffect(() => {
-    if (!pendingMessage || !conversationId || pendingMessageSentRef.current) return
-    if (status !== "ready") return
-
-    pendingMessageSentRef.current = true
-    onSendPendingMessage(pendingMessage)
-  }, [pendingMessage, conversationId, status])
+  }, [pendingMessage, conversationId, status, sendMessage])
 
   // Handle mermaid diagram updates from messages via custom hook
   useMermaidUpdates(messages)
-
-  if (!conversationId) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-4">
-        <div className="size-12 rounded-full bg-muted flex items-center justify-center mb-2">
-          <MessageSquare className="size-6 text-muted-foreground/60" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">No conversation selected</h3>
-          <p className="text-xs text-muted-foreground max-w-52 mx-auto">
-            Choose a chat from the sidebar or create a new one to get started.
-          </p>
-        </div>
-      </div>
-    )
-  }
 
   // Skip loading skeleton for new conversations with pending message
   if (isLoadingConversation && !pendingMessage) {
@@ -224,6 +211,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           onModelChange={setModel}
           thinking={thinking}
           onThinkingChange={setThinking}
+          webSearch={webSearch}
+          onWebSearchChange={setWebSearch}
         />
       </div>
     </div>

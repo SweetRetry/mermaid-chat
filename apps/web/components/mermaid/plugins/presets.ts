@@ -1,7 +1,7 @@
-import type { MermaidPlugin } from "../mermaid-renderer"
 import { createCodeViewPlugin } from "./code-view-plugin"
 import { createExportPlugin } from "./export-plugin"
 import { createTransformPlugin } from "./transform-plugin"
+import type { MermaidPlugin } from "./types"
 
 /**
  * Full-featured plugins preset:

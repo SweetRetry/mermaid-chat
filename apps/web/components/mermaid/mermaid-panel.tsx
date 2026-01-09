@@ -1,20 +1,20 @@
 "use client"
 
+import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import type { ConversationDetail } from "@/types/chat"
 import type { UpdateChartToolUIPart } from "@/types/tool"
-import { useMermaidContext } from "@/components/mermaid/mermaid-context"
 import { Button } from "@workspace/ui/components/button"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { useMemo } from "react"
 import { MermaidEmptyState } from "./mermaid-empty-state"
+import { MermaidRenderer } from "./mermaid-renderer"
 import {
-  MermaidRenderer,
-  createTransformPlugin,
-  createExportPlugin,
   createCodeViewPlugin,
+  createExportPlugin,
   createNodeSelectionPlugin,
-} from "./mermaid-renderer"
+  createTransformPlugin,
+} from "./plugins"
 
 interface MermaidPanelProps {
   className?: string
@@ -51,12 +51,14 @@ export function MermaidPanel({
     ? conversationDetail?.messages.find((msg) => msg.id === selectedMermaidMessageId)
     : undefined
 
-  const selectedPart = selectedMessage?.parts?.find(
-    (part) => part.type === "tool-update_chart"
-  ) as UpdateChartToolUIPart | undefined
+  const selectedPart = selectedMessage?.parts?.find((part) => part.type === "tool-update_chart") as
+    | UpdateChartToolUIPart
+    | undefined
 
   const selectedCode =
-    selectedPart?.state === "output-available" ? selectedPart.output?.code : selectedPart?.input?.code
+    selectedPart?.state === "output-available"
+      ? selectedPart.output?.code
+      : selectedPart?.input?.code
 
   const viewCode = selectedCode ?? latestMermaidCode
   const isViewingOldVersion = Boolean(

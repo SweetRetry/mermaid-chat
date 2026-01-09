@@ -1,5 +1,5 @@
 import { createJsonErrorResponseHandler } from "@ai-sdk/provider-utils";
-import { z } from "zod/v4";
+import { z } from "zod";
 
 const volcengineErrorSchema = z.object({
   error: z.object({

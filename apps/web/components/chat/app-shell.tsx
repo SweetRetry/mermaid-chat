@@ -9,8 +9,9 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable"
-import { SidebarTrigger, useSidebar } from "@workspace/ui/components/sidebar"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { ArrowLeft } from "lucide-react"
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Layout } from "react-resizable-panels"
 
@@ -34,16 +35,14 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
   const [selectedMermaidMessageId, setSelectedMermaidMessageId] = useState<string | null>(null)
   const [inputText, setInputText] = useState("")
   const chatPanelRef = useRef<ChatPanelHandle>(null)
-  const { isMobile, state } = useSidebar()
-  const isCollapsed = state === "collapsed"
-  const isClient = useIsClient()
 
   // State for streaming/override mermaid code (null = use conversation data)
   const [streamingMermaidCode, setStreamingMermaidCode] = useState<string | null>(null)
   const [isMermaidUpdating, setIsMermaidUpdating] = useState(false)
 
   // Derive effective mermaid code: streaming override takes priority, then conversation data
-  const latestMermaidCode = streamingMermaidCode ?? conversationDetail?.latestChart?.mermaidCode ?? ""
+  const latestMermaidCode =
+    streamingMermaidCode ?? conversationDetail?.latestChart?.mermaidCode ?? ""
 
   // Wrapper to set mermaid code (updates streaming state)
   const setLatestMermaidCode = useCallback((code: string) => {
@@ -96,19 +95,21 @@ export function AppShell({ defaultLayout, groupId, conversationId }: AppShellPro
 
   return (
     <MermaidContextProvider value={mermaidContextValue}>
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Header with sidebar trigger for mobile/collapsed state */}
+      <div className="h-full flex flex-col overflow-hidden relative">
+        {/* Header with logo and conversation title */}
+        <div className="flex items-center shrink-0 absolute top-4 left-4 z-10">
+          <Link href="/" className="flex items-center group transition-all hover:opacity-90 mr-4">
+            <ArrowLeft className="size-4" />
+          </Link>
 
-        {isClient && (isMobile || isCollapsed) && <SidebarTrigger className="size-7" />}
-        {conversationId && (
-          <div className="flex items-center rounded-xl absolute top-4 left-4">
-            {isLoadingConversation ? (
-              <Skeleton className="h-5 w-32" />
-            ) : (
-              conversationDetail?.title || "New Diagram"
-            )}
-          </div>
-        )}
+          {isLoadingConversation ? (
+            <Skeleton className="h-4 w-32" />
+          ) : (
+            <span className="text-sm font-bold truncate block tracking-tight">
+              {conversationDetail?.title || "New Diagram"}
+            </span>
+          )}
+        </div>
 
         <div className="flex-1 overflow-hidden">
           <ResizablePanelGroup

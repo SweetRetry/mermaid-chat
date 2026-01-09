@@ -4,7 +4,7 @@ import { exportSvgToPng } from "@/lib/utils/svg-export"
 import { Button } from "@workspace/ui/components/button"
 import { Check, Copy, Download } from "lucide-react"
 import { useState } from "react"
-import type { MermaidPlugin, MermaidPluginContext } from "../mermaid-renderer"
+import type { MermaidPlugin, MermaidPluginContext } from "./types"
 
 function ExportControls({ ctx }: { ctx: MermaidPluginContext }) {
   const [copied, setCopied] = useState(false)

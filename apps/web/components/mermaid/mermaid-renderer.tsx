@@ -1,33 +1,9 @@
 "use client"
-
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import mermaid from "mermaid"
-import { type ReactNode, type RefObject, useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
-
-// ============================================================================
-// Plugin System Types
-// ============================================================================
-
-export interface MermaidPluginContext {
-  code: string
-  svg: string
-  containerRef: RefObject<HTMLDivElement | null>
-  isUpdating: boolean
-  isParsing: boolean
-}
-
-export interface MermaidPlugin {
-  name: string
-  /** Render overlay controls (e.g., zoom buttons, export) */
-  renderControls?: (ctx: MermaidPluginContext) => ReactNode
-  /** Wrap the SVG container (e.g., add pan/zoom transform) */
-  wrapContainer?: (children: ReactNode, ctx: MermaidPluginContext) => ReactNode
-  /** Container props to merge (e.g., event handlers, styles) */
-  getContainerProps?: (ctx: MermaidPluginContext) => React.HTMLAttributes<HTMLDivElement>
-  /** Called after SVG render */
-  onRender?: (ctx: MermaidPluginContext) => void
-}
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
+import type { MermaidPlugin, MermaidPluginContext } from "./plugins/types"
 
 // ============================================================================
 // Mermaid Initialization
@@ -246,9 +222,3 @@ export function MermaidRenderer({
     </div>
   )
 }
-
-// ============================================================================
-// Re-export plugins
-// ============================================================================
-
-export * from "./plugins"

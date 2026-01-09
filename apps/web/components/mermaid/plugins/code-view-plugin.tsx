@@ -10,7 +10,7 @@ import {
 } from "@workspace/ui/components/dialog"
 import { Check, Code, Copy } from "lucide-react"
 import { useState } from "react"
-import type { MermaidPlugin, MermaidPluginContext } from "../mermaid-renderer"
+import type { MermaidPlugin, MermaidPluginContext } from "./types"
 
 function CodeViewControls({ ctx }: { ctx: MermaidPluginContext }) {
   const [copied, setCopied] = useState(false)

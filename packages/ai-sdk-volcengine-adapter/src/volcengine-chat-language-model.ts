@@ -21,7 +21,7 @@ import {
   postJsonToApi,
   removeUndefinedEntries,
 } from "@ai-sdk/provider-utils"
-import { z } from "zod/v4"
+import { z } from "zod"
 import { convertToVolcengineChatMessages } from "./convert-to-volcengine-chat-message"
 import { getResponseMetadata } from "./get-response-metadata"
 import { mapVolcengineFinishReason } from "./map-volcengine-finish-reason"

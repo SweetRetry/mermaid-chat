@@ -1,11 +1,8 @@
-import { Inter, JetBrains_Mono } from "next/font/google"
-import { cookies } from "next/headers"
 import { Analytics } from "@vercel/analytics/react"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Inter, JetBrains_Mono } from "next/font/google"
 
 import "@workspace/ui/globals.css"
-
-import { SidebarLayout } from "@/components/layout/sidebar-layout"
 import { Providers } from "@/components/providers"
 
 const fontSans = Inter({
@@ -25,18 +22,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  const cookieStore = await cookies()
-  const sidebarState = cookieStore.get(SIDEBAR_COOKIE_NAME)?.value
-  const defaultOpen = sidebarState !== "false"
-
   return (
     <html lang="zh-CN" suppressHydrationWarning className="w-full h-full">
       <body
-        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased w-full h-full`}
+        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased w-full h-full flex flex-col`}
       >
-        <Providers>
-          <SidebarLayout defaultOpen={defaultOpen}>{children}</SidebarLayout>
-        </Providers>
+        <Providers>{children}</Providers>
         <Analytics />
         <SpeedInsights />
       </body>

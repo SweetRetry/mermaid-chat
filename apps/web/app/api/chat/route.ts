@@ -6,12 +6,13 @@ import {
   type ModelMessage,
   TextPart,
   TextUIPart,
+  ToolSet,
   type ToolUIPart,
   type UIMessage,
   streamText,
   tool,
 } from "ai"
-import { volcengine } from "ai-sdk-volcengine-adapter"
+import { volcengine, volcengineTools } from "ai-sdk-volcengine-adapter"
 import { z } from "zod"
 
 export const maxDuration = 60
@@ -33,6 +34,20 @@ When the user asks you to create or modify a diagram:
 IMPORTANT: When providing code to the update_chart tool:
 - Do NOT wrap the code in markdown code fences (\`\`\`mermaid or \`\`\`)
 - Provide ONLY the raw Mermaid diagram code starting with the diagram type (e.g., "flowchart TD", "sequenceDiagram", etc.)
+
+CRITICAL: Mermaid Syntax Rules (MUST follow strictly):
+1. Node labels MUST be quoted: Use NodeID["Label Text"] format, NOT NodeID[Label Text]
+2. Special characters in labels: If text contains (), [], {}, <>, #, &, or |, it MUST be inside double quotes
+3. Edge format: Use simple arrows like A --> B or A -->|label| B
+4. Examples of CORRECT syntax:
+   - A["Server-Sent Events (SSE)"]
+   - B["User Input & Output"]
+   - C["Array[T] Generic"]
+   - D["Step #1: Initialize"]
+5. Examples of INCORRECT syntax (will cause parse errors):
+   - A[Server-Sent Events (SSE)]  <-- parentheses not quoted
+   - B[User Input & Output]       <-- ampersand not quoted
+   - C[Array[T] Generic]          <-- nested brackets not quoted
 
 If the user is only asking questions, explanations, or analysis about the existing diagram, do not call the update_chart tool.
 
@@ -181,7 +196,7 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { userMessage, currentChart, model, thinking, conversationId } = payload
+  const { userMessage, currentChart, model, thinking, webSearch, conversationId } = payload
 
   if (typeof currentChart !== "string" && currentChart !== undefined) {
     return new Response("Invalid request payload", { status: 400 })
@@ -233,11 +248,22 @@ export async function POST(req: Request) {
 
   const modelMessages = convertToModelMessages(contextMessages)
 
+
+  const tools = webSearch === true
+    ? {
+      ...TOOLS,
+      web_search: volcengineTools.webSearch({
+        maxKeyword: 3,
+        limit: 10,
+      }),
+    }
+    : TOOLS
+
   const result = streamText({
     model: getModel(selectedModelId),
     system: systemPrompt,
     messages: modelMessages,
-    tools: TOOLS,
+    tools: tools as unknown as ToolSet,
     providerOptions: {
       volcengine: {
         thinking: thinking === true,
@@ -266,6 +292,7 @@ export async function POST(req: Request) {
 
         let latestChartCode: string | undefined
         if (toolResults) {
+          console.log(toolResults)
           const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
           if (chartResult && "output" in chartResult) {
             const output = chartResult.output as { code?: string }

@@ -1,8 +1,8 @@
 "use client"
 
-import type { MermaidPlugin, MermaidPluginContext } from "../mermaid-renderer"
 import { useNodeSelection } from "@/hooks/use-node-selection"
 import { useEffect } from "react"
+import type { MermaidPlugin, MermaidPluginContext } from "./types"
 
 interface NodeSelectionPluginOptions {
   onNodeSelect?: (selection: string) => void

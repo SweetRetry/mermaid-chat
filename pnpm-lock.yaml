@@ -28,7 +28,7 @@ importers:
     dependencies:
       '@ai-sdk/react':
         specifier: ^3.0.19
-        version: 3.0.20(react@19.2.3)(zod@3.25.76)
+        version: 3.0.20(react@19.2.3)(zod@4.3.5)
       '@neondatabase/serverless':
         specifier: ^1.0.2
         version: 1.0.2
@@ -61,7 +61,7 @@ importers:
         version: link:../../packages/ui
       ai:
         specifier: ^6.0.19
-        version: 6.0.20(zod@3.25.76)
+        version: 6.0.20(zod@4.3.5)
       ai-sdk-volcengine-adapter:
         specifier: workspace:*
         version: link:../../packages/ai-sdk-volcengine-adapter
@@ -91,7 +91,7 @@ importers:
         version: 0.4.6(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       openai:
         specifier: ^6.15.0
-        version: 6.15.0(ws@8.19.0)(zod@3.25.76)
+        version: 6.15.0(ws@8.19.0)(zod@4.3.5)
       react:
         specifier: ^19.2.1
         version: 19.2.3
@@ -108,8 +108,8 @@ importers:
         specifier: ^8.19.0
         version: 8.19.0
       zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+        specifier: ^4.3.5
+        version: 4.3.5
       zustand:
         specifier: ^5.0.3
         version: 5.0.9(@types/react@19.2.7)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -4886,6 +4886,13 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 3.25.76
 
+  '@ai-sdk/gateway@3.0.10(zod@4.3.5)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@4.3.5)
+      '@vercel/oidc': 3.1.0
+      zod: 4.3.5
+
   '@ai-sdk/provider-utils@4.0.4(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.2
@@ -4908,6 +4915,16 @@ snapshots:
     dependencies:
       '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
       ai: 6.0.20(zod@3.25.76)
+      react: 19.2.3
+      swr: 2.3.8(react@19.2.3)
+      throttleit: 2.1.0
+    transitivePeerDependencies:
+      - zod
+
+  '@ai-sdk/react@3.0.20(react@19.2.3)(zod@4.3.5)':
+    dependencies:
+      '@ai-sdk/provider-utils': 4.0.4(zod@4.3.5)
+      ai: 6.0.20(zod@4.3.5)
       react: 19.2.3
       swr: 2.3.8(react@19.2.3)
       throttleit: 2.1.0
@@ -6564,6 +6581,14 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
       '@opentelemetry/api': 1.9.0
       zod: 3.25.76
+
+  ai@6.0.20(zod@4.3.5):
+    dependencies:
+      '@ai-sdk/gateway': 3.0.10(zod@4.3.5)
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@4.3.5)
+      '@opentelemetry/api': 1.9.0
+      zod: 4.3.5
 
   ansi-escapes@4.3.2:
     dependencies:
@@ -8539,10 +8564,10 @@ snapshots:
       regex: 6.1.0
       regex-recursion: 6.0.2
 
-  openai@6.15.0(ws@8.19.0)(zod@3.25.76):
+  openai@6.15.0(ws@8.19.0)(zod@4.3.5):
     optionalDependencies:
       ws: 8.19.0
-      zod: 3.25.76
+      zod: 4.3.5
 
   ora@4.1.1:
     dependencies:

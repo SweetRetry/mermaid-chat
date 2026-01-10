@@ -23,6 +23,7 @@ import {
 } from "@ai-sdk/provider-utils"
 import { z } from "zod"
 import { convertToVolcengineChatMessages } from "./convert-to-volcengine-chat-message"
+import { convertVolcengineUsage } from "./convert-volcengine-usage"
 import { getResponseMetadata } from "./get-response-metadata"
 import { mapVolcengineFinishReason } from "./map-volcengine-finish-reason"
 import { volcengineChatOptions } from "./volcengine-chat-options"
@@ -42,6 +43,16 @@ const volcengineUsageSchema = z.object({
   prompt_tokens: z.number().optional(),
   completion_tokens: z.number().optional(),
   total_tokens: z.number().optional(),
+  prompt_tokens_details: z
+    .object({
+      cached_tokens: z.number().optional(),
+    })
+    .optional(),
+  completion_tokens_details: z
+    .object({
+      reasoning_tokens: z.number().optional(),
+    })
+    .optional(),
 })
 
 const volcengineToolCallSchema = z.object({
@@ -265,7 +276,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
     }
 
     const content = this.extractContent(choice.message)
-    const usage = this.extractUsage(response.usage)
+    const usage = convertVolcengineUsage(response.usage)
     const finishReason = mapVolcengineFinishReason(choice.finish_reason)
 
     return {
@@ -288,7 +299,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
     const { value: eventStream, responseHeaders } = await postJsonToApi({
       url: `${this.config.baseURL}/chat/completions`,
       headers: combineHeaders(this.config.headers(), options.headers),
-      body: { ...args, stream: true },
+      body: { ...args, stream: true, stream_options: { include_usage: true } },
       failedResponseHandler: volcengineFailedResponseHandler,
       successfulResponseHandler: createEventSourceResponseHandler(volcengineChatChunkSchema),
       abortSignal: options.abortSignal,
@@ -342,7 +353,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
             if (!choice) {
               // Handle usage in final chunk (when choices is empty)
               if (chunk.usage != null) {
-                usage = self.extractUsage(chunk.usage)
+                usage = convertVolcengineUsage(chunk.usage)
               }
               continue
             }
@@ -413,7 +424,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
 
             // Handle usage
             if (chunk.usage != null) {
-              usage = self.extractUsage(chunk.usage)
+              usage = convertVolcengineUsage(chunk.usage)
             }
           }
 
@@ -444,7 +455,7 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
           controller.enqueue({
             type: "finish",
             finishReason: finishReason ?? { unified: "other", raw: undefined },
-            usage: usage ?? self.emptyUsage(),
+            usage: usage ?? convertVolcengineUsage(undefined),
           })
         } catch (error) {
           controller.enqueue({ type: "error", error })
@@ -501,40 +512,5 @@ export class VolcengineChatLanguageModel implements LanguageModelV3 {
     }
 
     return content
-  }
-
-  private extractUsage(
-    usage: z.infer<typeof volcengineUsageSchema> | undefined
-  ): LanguageModelV3Usage {
-    return {
-      inputTokens: {
-        total: usage?.prompt_tokens,
-        noCache: undefined,
-        cacheRead: undefined,
-        cacheWrite: undefined,
-      },
-      outputTokens: {
-        total: usage?.completion_tokens,
-        text: undefined,
-        reasoning: undefined,
-      },
-      raw: usage,
-    }
-  }
-
-  private emptyUsage(): LanguageModelV3Usage {
-    return {
-      inputTokens: {
-        total: undefined,
-        noCache: undefined,
-        cacheRead: undefined,
-        cacheWrite: undefined,
-      },
-      outputTokens: {
-        total: undefined,
-        text: undefined,
-        reasoning: undefined,
-      },
-    }
   }
 }

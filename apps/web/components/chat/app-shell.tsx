@@ -67,7 +67,7 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   }, [])
 
   return (
-    <div className="h-full flex flex-col overflow-hidden relative">
+    <div className="min-h-screen h-screen flex flex-col overflow-hidden relative">
       {/* Header with logo and conversation title */}
       <div className="flex items-center shrink-0 absolute top-4 left-4 z-10">
         <Link href="/" className="flex items-center group transition-all hover:opacity-90 mr-4">
@@ -83,51 +83,50 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-hidden">
-        <ResizablePanelGroup
-          orientation="horizontal"
-          id={groupId}
-          defaultLayout={defaultLayout}
-          onLayoutChange={handleLayoutChange}
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="h-full overflow-hidden"
+        id={groupId}
+        defaultLayout={defaultLayout}
+        onLayoutChange={handleLayoutChange}
+      >
+        <ResizablePanel id="preview" defaultSize={defaultLayout?.[0] ?? 70} minSize="50%">
+          <MermaidPanel
+            className="h-full"
+            conversationDetail={conversationDetail}
+            selectedMermaidMessageId={selectedMermaidMessageId}
+            onSelectedMermaidMessageIdChange={setSelectedMermaidMessageId}
+            isLoadingConversation={isLoadingConversation}
+            onAppendInputText={handleAppendInputText}
+            onFixError={handleFixError}
+            latestMermaidCode={latestMermaidCode}
+            isMermaidUpdating={isMermaidUpdating}
+          />
+        </ResizablePanel>
+
+        <ResizableHandle />
+
+        <ResizablePanel
+          id="chat"
+          defaultSize={defaultLayout?.[1] ?? 30}
+          minSize="350px"
+          className="h-full"
         >
-          <ResizablePanel id="preview" defaultSize={defaultLayout?.[0] ?? 70} minSize="50%">
-            <MermaidPanel
-              className="max-h-screen"
-              conversationDetail={conversationDetail}
-              selectedMermaidMessageId={selectedMermaidMessageId}
-              onSelectedMermaidMessageIdChange={setSelectedMermaidMessageId}
-              isLoadingConversation={isLoadingConversation}
-              onAppendInputText={handleAppendInputText}
-              onFixError={handleFixError}
-              latestMermaidCode={latestMermaidCode}
-              isMermaidUpdating={isMermaidUpdating}
-            />
-          </ResizablePanel>
-
-          <ResizableHandle />
-
-          <ResizablePanel
-            id="chat"
-            defaultSize={defaultLayout?.[1] ?? 30}
-            minSize="350px"
-            className="max-h-screen"
-          >
-            <ChatPanel
-              ref={chatPanelRef}
-              key={`${conversationId ?? "empty"}-${isLoadingConversation ? "loading" : "ready"}`}
-              conversationId={conversationId}
-              conversationDetail={conversationDetail}
-              isLoadingConversation={isLoadingConversation}
-              onSelectMermaidMessage={setSelectedMermaidMessageId}
-              inputText={inputText}
-              onInputTextChange={setInputText}
-              latestMermaidCode={latestMermaidCode}
-              setLatestMermaidCode={setLatestMermaidCode}
-              setIsMermaidUpdating={setIsMermaidUpdating}
-            />
-          </ResizablePanel>
-        </ResizablePanelGroup>
-      </div>
+          <ChatPanel
+            ref={chatPanelRef}
+            key={conversationId}
+            conversationId={conversationId}
+            conversationDetail={conversationDetail}
+            isLoadingConversation={isLoadingConversation}
+            onSelectMermaidMessage={setSelectedMermaidMessageId}
+            inputText={inputText}
+            onInputTextChange={setInputText}
+            latestMermaidCode={latestMermaidCode}
+            setLatestMermaidCode={setLatestMermaidCode}
+            setIsMermaidUpdating={setIsMermaidUpdating}
+          />
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   )
 }

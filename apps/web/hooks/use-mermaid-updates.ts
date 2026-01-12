@@ -46,7 +46,9 @@ export function useMermaidUpdates({
       if (updatePart) {
         // If the tool is still in progress (streaming or called but not finished), mark as updating
         const isStreaming = updatePart.state !== "output-available"
-        const code = isStreaming ? updatePart.input?.code : updatePart.output?.code
+        const code = isStreaming
+          ? updatePart.input?.code
+          : updatePart.output?.code || updatePart.input?.code
 
         if (isStreaming) {
           isUpdating = true

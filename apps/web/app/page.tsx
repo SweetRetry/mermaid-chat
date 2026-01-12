@@ -3,7 +3,6 @@
 import { ChatInput } from "@/components/chat/chat-input"
 import { ConversationCard } from "@/components/conversation/conversation-card"
 import { useConversations } from "@/hooks/use-conversations"
-
 import { type PendingMessage, savePendingMessage } from "@/lib/utils/pending-message"
 import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Button } from "@workspace/ui/components/button"
@@ -40,8 +39,12 @@ export default function Page() {
   const router = useRouter()
   const [input, setInput] = useState("")
   const [isPending, startTransition] = useTransition()
-  const [model, setModel] = useState("seed1.8")
   const { conversations, createConversation, deleteConversation, isLoading } = useConversations()
+
+  // Local chat settings
+  const [model, setModel] = useState("seed1.8")
+  const [thinking, setThinking] = useState(false)
+  const [webSearch, setWebSearch] = useState(false)
 
   // Prevent hydration mismatch by using a stable initial state
   const [isMounted, setIsMounted] = useState(false)
@@ -56,7 +59,6 @@ export default function Page() {
       const pending: PendingMessage = {
         text: message.text,
         files: message.files,
-        model,
       }
       savePendingMessage(pending)
 
@@ -103,6 +105,10 @@ export default function Page() {
               placeholder="问问 Mermaid..."
               model={model}
               onModelChange={setModel}
+              thinking={thinking}
+              onThinkingChange={setThinking}
+              webSearch={webSearch}
+              onWebSearchChange={setWebSearch}
             />
 
             <div className="flex flex-wrap justify-center gap-2">

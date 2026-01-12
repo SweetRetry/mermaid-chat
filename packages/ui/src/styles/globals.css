@@ -82,7 +82,8 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-sans), "PingFang SC", "Noto Sans SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  --font-sans: var(--font-sans), "PingFang SC", "Noto Sans SC", "Microsoft YaHei",
+    "Hiragino Sans GB", sans-serif;
   --font-mono: var(--font-mono), "SF Mono", "Fira Code", "Noto Sans Mono CJK SC", monospace;
 
   --color-background: var(--background);

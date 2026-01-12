@@ -67,9 +67,10 @@ function ThinkingButton({
     <PromptInputButton
       onClick={onToggle}
       title={active ? "关闭深度思考" : "开启深度思考"}
-      className={cn(active && "bg-primary/10 text-primary")}
+      className={cn("transition-all", active && "bg-primary/10 text-primary")}
     >
       <Brain className="size-4" />
+      {active && <span className="text-xs font-medium">深度思考</span>}
     </PromptInputButton>
   )
 }
@@ -85,9 +86,10 @@ function WebSearchButton({
     <PromptInputButton
       onClick={onToggle}
       title={active ? "关闭联网搜索" : "开启联网搜索"}
-      className={cn(active && "bg-primary/10 text-primary")}
+      className={cn("transition-all", active && "bg-primary/10 text-primary")}
     >
       <Globe className="size-4" />
+      {active && <span className="text-xs font-medium">联网搜索</span>}
     </PromptInputButton>
   )
 }
@@ -98,14 +100,12 @@ async function processMarkdownFiles(message: PromptInputMessage): Promise<Prompt
 
   for (const file of message.files) {
     if (file.mediaType === "text/markdown" || file.filename?.endsWith(".md")) {
-      // Read markdown file as text
       if (file.url) {
         try {
           const response = await fetch(file.url)
           const content = await response.text()
           textParts.push(`--- ${file.filename ?? "markdown"} ---\n${content}`)
         } catch {
-          // If fetch fails, keep as file
           mediaFiles.push(file)
         }
       }
@@ -127,26 +127,17 @@ export function ChatInput({
   status = "ready",
   disabled,
   placeholder = "Describe the diagram you want to create...",
+  className,
   model,
   onModelChange,
   thinking = false,
   onThinkingChange,
   webSearch = false,
   onWebSearchChange,
-  className,
 }: ChatInputProps) {
   const supportsFiles = model === "seed1.8"
 
-  const handleThinkingToggle = () => {
-    onThinkingChange?.(!thinking)
-  }
-
-  const handleWebSearchToggle = () => {
-    onWebSearchChange?.(!webSearch)
-  }
-
   const handleSubmit = async (message: PromptInputMessage) => {
-    // Process markdown files: convert to text
     const processed = await processMarkdownFiles(message)
     onSubmit(processed)
   }
@@ -166,8 +157,8 @@ export function ChatInput({
       </PromptInputBody>
       <PromptInputFooter>
         <AttachmentButton disabled={!supportsFiles} />
-        <ThinkingButton active={thinking} onToggle={handleThinkingToggle} />
-        <WebSearchButton active={webSearch} onToggle={handleWebSearchToggle} />
+        <ThinkingButton active={thinking} onToggle={() => onThinkingChange?.(!thinking)} />
+        <WebSearchButton active={webSearch} onToggle={() => onWebSearchChange?.(!webSearch)} />
 
         <div className="flex-1" />
 

@@ -38,7 +38,6 @@ export function MermaidPanel({
   latestMermaidCode,
   isMermaidUpdating,
 }: MermaidPanelProps) {
-
   const plugins = useMemo(
     () => [
       createTransformPlugin(),
@@ -59,7 +58,7 @@ export function MermaidPanel({
 
   const selectedCode =
     selectedPart?.state === "output-available"
-      ? selectedPart.output?.code
+      ? selectedPart.output?.code || selectedPart.input?.code
       : selectedPart?.input?.code
 
   const viewCode = selectedCode ?? latestMermaidCode

@@ -3,9 +3,8 @@
 import { useGesture } from "@use-gesture/react"
 import { type RefObject, useCallback, useState } from "react"
 
-export const MIN_SCALE = 0.2
+export const MIN_SCALE = 1
 export const MAX_SCALE = 4
-const FIT_VIEW_PADDING = 40
 
 export interface Transform {
   x: number
@@ -79,23 +78,76 @@ export function useDiagramTransform(
 
     const containerRect = container.getBoundingClientRect()
 
-    // Get original SVG dimensions from viewBox or width/height attributes
-    const viewBox = svg.viewBox.baseVal
-    const svgWidth = viewBox.width || parseFloat(svg.getAttribute("width") || "0")
-    const svgHeight = viewBox.height || parseFloat(svg.getAttribute("height") || "0")
+    // Helper to get dimensions from viewBox
+    const getViewBox = (element: SVGSVGElement) => {
+      const viewBox = element.viewBox.baseVal
+      return {
+        x: viewBox.x,
+        y: viewBox.y,
+        width: viewBox.width,
+        height: viewBox.height,
+      }
+    }
 
-    if (svgWidth === 0 || svgHeight === 0) return
+    // 1. DETERMINE CONTENT BOUNDS
+    let x = 0
+    let y = 0
+    let width = 0
+    let height = 0
+    let usedBBox = false
 
-    // Calculate scale to fit with padding
-    const availableWidth = containerRect.width - FIT_VIEW_PADDING * 2
-    const availableHeight = containerRect.height - FIT_VIEW_PADDING * 2
+    try {
+      const bBox = svg.getBBox()
+      x = bBox.x
+      y = bBox.y
+      width = bBox.width
+      height = bBox.height
 
-    const scaleX = availableWidth / svgWidth
-    const scaleY = availableHeight / svgHeight
-    const newScale = Math.min(Math.max(Math.min(scaleX, scaleY), MIN_SCALE), MAX_SCALE)
+      if (width > 0 && height > 0) {
+        usedBBox = true
+      }
+    } catch (e) {
+      // Fallback
+    }
 
-    // Center the diagram (x: 0, y: 0 means centered due to transformOrigin: center)
-    setTransform({ x: 0, y: 0, scale: newScale })
+    if (!usedBBox) {
+      const vb = getViewBox(svg)
+      x = vb.x
+      y = vb.y
+      width = vb.width || Number.parseFloat(svg.getAttribute("width") || "0")
+      height = vb.height || Number.parseFloat(svg.getAttribute("height") || "0")
+    }
+
+    if (width === 0 || height === 0) return
+
+    // 2. APPLY BOUNDS TO VIEWBOX
+    svg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`)
+
+    // 3. SET INTRINSIC SIZE & RESET CSS
+    // Remove "100%" CSS styles that force top-alignment or double-scaling
+    svg.style.width = ""
+    svg.style.height = ""
+    svg.style.maxWidth = "none"
+
+    // Set explicit pixel dimensions so the SVG element takes up accurate space.
+    // The parent Flexbox (align-items: center) will then center this element perfectly.
+    svg.setAttribute("width", `${width}`)
+    svg.setAttribute("height", `${height}`)
+
+    // Remove preserveAspectRatio to avoid conflicting alignment logic
+    svg.removeAttribute("preserveAspectRatio")
+
+    // 4. CALCULATE SCALE
+    const padding = 40
+    const availableWidth = containerRect.width - padding * 2
+    const availableHeight = containerRect.height - padding * 2
+
+    if (availableWidth <= 0 || availableHeight <= 0) return
+
+
+
+    // 5. CENTER TRANSFORM
+    setTransform({ x: 0, y: 0, scale: 2 })
   }, [containerRef])
 
   return {

@@ -21,7 +21,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
-  const { messages, latestChartCode, ...rest } = conversation
+  const { messages, latestChartCode, document, ...rest } = conversation
 
   // Parse message content from JSON to restore full message parts
   const parsedMessages = messages.map((msg) => {
@@ -46,6 +46,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     ...rest,
     messages: parsedMessages,
     latestChart: latestChartCode ? { mermaidCode: latestChartCode } : null,
+    document,
   })
 }
 

@@ -3,12 +3,14 @@
 import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
 import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
 import { useConversation } from "@/hooks/use-conversation"
+import { conversationKeys } from "@/lib/api/conversations"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable"
 import { Skeleton } from "@workspace/ui/components/skeleton"
+import { useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -22,6 +24,7 @@ interface AppShellProps {
 
 export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   const { conversationId } = useParams<{ conversationId: string }>()
+  const queryClient = useQueryClient()
   const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
   const [selectedMermaidMessageId, setSelectedMermaidMessageId] = useState<string | null>(null)
   const [inputText, setInputText] = useState("")
@@ -58,13 +61,35 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   }, [])
 
   const handleFixError = useCallback((error: string) => {
-    const fixPrompt = `The Mermaid diagram has a render error. Please fix it.\n\nError: ${error}`
+    const fixPrompt = `The Mermaid diagram has a render error. Please fix it.
+
+Error: ${error}
+
+If this error is difficult to fix directly, try simplifying the syntax complexity while preserving the same semantic meaning. For example:
+- Use shorter node labels or IDs
+- Replace complex subgraphs with simpler structures
+- Avoid advanced features that may have compatibility issues`
     setInputText(fixPrompt)
     requestAnimationFrame(() => {
       chatPanelRef.current?.sendTextMessage(fixPrompt)
       setInputText("")
     })
   }, [])
+
+  const handleDocumentChange = useCallback(
+    (document: string | null) => {
+      // Invalidate the conversation detail cache to refresh with new document
+      if (conversationId) {
+        queryClient.setQueryData(conversationKeys.detail(conversationId), (old: unknown) => {
+          if (old && typeof old === "object") {
+            return { ...old, document }
+          }
+          return old
+        })
+      }
+    },
+    [conversationId, queryClient]
+  )
 
   return (
     <div className="min-h-screen h-screen flex flex-col overflow-hidden relative">
@@ -101,6 +126,7 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
             onFixError={handleFixError}
             latestMermaidCode={latestMermaidCode}
             isMermaidUpdating={isMermaidUpdating}
+            onDocumentChange={handleDocumentChange}
           />
         </ResizablePanel>
 

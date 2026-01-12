@@ -14,7 +14,7 @@ import type { PromptInputMessage } from "@workspace/ui/ai-elements/prompt-input"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport, type FileUIPart } from "ai"
-import { forwardRef, useImperativeHandle, useMemo, useState } from "react"
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput } from "./chat-input"
 import { ChatMessage } from "./chat-message"
@@ -52,9 +52,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   ref
 ) {
   // Local state for chat settings
-  const [model, setModel] = useState("seed1.8")
   const [thinking, setThinking] = useState(false)
   const [webSearch, setWebSearch] = useState(false)
+
+  // Use ref to avoid stale closure in transport callback
+  const settingsRef = useRef({ thinking, webSearch, latestMermaidCode })
+  settingsRef.current = { thinking, webSearch, latestMermaidCode }
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -64,20 +67,20 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
         api: "/api/chat",
         prepareSendMessagesRequest: (options) => {
           const lastMessage = options.messages[options.messages.length - 1]
+          const settings = settingsRef.current
           return {
             ...options,
             body: {
-              currentChart: latestMermaidCode,
-              model,
-              thinking,
-              webSearch,
+              currentChart: settings.latestMermaidCode,
+              thinking: settings.thinking,
+              webSearch: settings.webSearch,
               conversationId,
               userMessage: lastMessage?.role === "user" ? lastMessage.parts : null,
             },
           }
         },
       }),
-    [conversationId, model, latestMermaidCode, thinking, webSearch]
+    [conversationId]
   )
 
   const initialUIMessages = useMemo(() => convertToUIMessages(initialMessages), [initialMessages])
@@ -183,8 +186,6 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           }}
           disabled={!conversationId}
           status={status === "submitted" ? "streaming" : status}
-          model={model}
-          onModelChange={setModel}
           thinking={thinking}
           onThinkingChange={setThinking}
           webSearch={webSearch}

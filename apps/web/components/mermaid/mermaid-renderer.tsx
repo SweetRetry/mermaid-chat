@@ -61,10 +61,20 @@ function getMermaidRenderContainer(): HTMLDivElement {
   if (!container) {
     container = document.createElement("div")
     container.id = containerId
-    container.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;"
+    container.style.cssText =
+      "position:absolute;width:0;height:0;overflow:hidden;pointer-events:none;"
     document.body.appendChild(container)
   }
   return container
+}
+
+/**
+ * Minimal pre-process to clean up basic wrapper artifacts.
+ * Structural integrity is now managed by the LLM via strict prompt rules.
+ */
+function preprocessMermaidCode(code: string): string {
+  if (!code) return ""
+  return code.trim().replace(/^```(?:mermaid)?\s*\n?|```$/gi, "")
 }
 
 /**
@@ -94,6 +104,12 @@ interface MermaidRendererProps {
   showError?: boolean
   /** Callback when user clicks "Fix Error" button */
   onFixError?: (error: string) => void
+  /** Conversation ID for document operations */
+  conversationId?: string
+  /** Current document content */
+  documentContent?: string | null
+  /** Callback when document changes */
+  onDocumentChange?: (document: string | null) => void
 }
 
 export const MermaidRenderer = memo(function MermaidRenderer({
@@ -105,6 +121,9 @@ export const MermaidRenderer = memo(function MermaidRenderer({
   showLoading = true,
   showError = true,
   onFixError,
+  conversationId,
+  documentContent,
+  onDocumentChange,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const instanceId = useId()
@@ -144,7 +163,8 @@ export const MermaidRenderer = memo(function MermaidRenderer({
         tempEl.id = elementId
         container.appendChild(tempEl)
 
-        const { svg: renderedSvg } = await mermaid.render(elementId, deferredCode)
+        const sanitizedCode = preprocessMermaidCode(deferredCode)
+        const { svg: renderedSvg } = await mermaid.render(elementId, sanitizedCode)
         if (cancelled) return
 
         const processedSvg = processSvgForNodeSelection(renderedSvg)
@@ -184,8 +204,19 @@ export const MermaidRenderer = memo(function MermaidRenderer({
       containerRef,
       isUpdating,
       isParsing,
+      conversationId,
+      document: documentContent,
+      onDocumentChange,
     }),
-    [deferredCode, displaySvg, isUpdating, isParsing]
+    [
+      deferredCode,
+      displaySvg,
+      isUpdating,
+      isParsing,
+      conversationId,
+      documentContent,
+      onDocumentChange,
+    ]
   )
 
   // Merge container props from plugins (must be before any conditional returns)

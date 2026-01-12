@@ -84,7 +84,7 @@ export function createVolcengine(
 
   const createChatModel = (modelId: string) =>
     new VolcengineChatLanguageModel(modelId, {
-      provider: "volcengine.chat",
+      provider: "volcengine",
       baseURL,
       headers: getHeaders,
       fetch: options.fetch,

@@ -1,19 +1,16 @@
-import { createCodeViewPlugin } from "./code-view-plugin"
-import { createExportPlugin } from "./export-plugin"
+import { createContextMenuPlugin } from "./context-menu-plugin"
 import { createTransformPlugin } from "./transform-plugin"
 import type { MermaidPlugin } from "./types"
 
 /**
  * Full-featured plugins preset:
  * - Pan & zoom with controls
- * - Export to PNG & copy code
- * - View source code dialog
+ * - Right-click context menu (copy code, export PNG)
  */
 export function fullPlugins(options?: { onNodeSelect?: (selection: string) => void }): MermaidPlugin[] {
   const plugins: MermaidPlugin[] = [
+    createContextMenuPlugin(),
     createTransformPlugin(),
-    createExportPlugin(),
-    createCodeViewPlugin(),
   ]
 
   if (options?.onNodeSelect) {

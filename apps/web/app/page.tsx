@@ -42,7 +42,6 @@ export default function Page() {
   const { conversations, createConversation, deleteConversation, isLoading } = useConversations()
 
   // Local chat settings
-  const [model, setModel] = useState("seed1.8")
   const [thinking, setThinking] = useState(false)
   const [webSearch, setWebSearch] = useState(false)
 
@@ -103,8 +102,6 @@ export default function Page() {
               status={isPending ? "streaming" : "ready"}
               disabled={isPending}
               placeholder="问问 Mermaid..."
-              model={model}
-              onModelChange={setModel}
               thinking={thinking}
               onThinkingChange={setThinking}
               webSearch={webSearch}

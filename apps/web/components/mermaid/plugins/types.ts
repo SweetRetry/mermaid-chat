@@ -6,6 +6,12 @@ export interface MermaidPluginContext {
   containerRef: RefObject<HTMLDivElement | null>
   isUpdating: boolean
   isParsing: boolean
+  /** Conversation ID for document operations */
+  conversationId?: string
+  /** Current document content */
+  document?: string | null
+  /** Callback when document changes */
+  onDocumentChange?: (document: string | null) => void
 }
 
 export interface MermaidPlugin {

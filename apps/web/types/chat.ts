@@ -13,6 +13,7 @@ export interface ConversationDetail {
   title: string
   messages: StoredMessage[]
   latestChart: { mermaidCode: string } | null
+  document: string | null
 }
 
 export interface Conversation {

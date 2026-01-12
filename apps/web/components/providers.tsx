@@ -34,7 +34,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <NextThemesProvider attribute="class" defaultTheme="system" enableSystem enableColorScheme>
+      <NextThemesProvider
+        attribute="class"
+        defaultTheme="system"
+        forcedTheme="light"
+        enableSystem
+        enableColorScheme
+      >
         {children}
       </NextThemesProvider>
     </QueryClientProvider>

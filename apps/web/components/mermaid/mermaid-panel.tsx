@@ -9,8 +9,8 @@ import { useMemo } from "react"
 import { MermaidEmptyState } from "./mermaid-empty-state"
 import { MermaidRenderer } from "./mermaid-renderer"
 import {
-  createCodeViewPlugin,
-  createExportPlugin,
+  createContextMenuPlugin,
+  createDocViewPlugin,
   createNodeSelectionPlugin,
   createTransformPlugin,
 } from "./plugins"
@@ -25,6 +25,7 @@ interface MermaidPanelProps {
   onFixError?: (error: string) => void
   latestMermaidCode: string
   isMermaidUpdating: boolean
+  onDocumentChange?: (document: string | null) => void
 }
 
 export function MermaidPanel({
@@ -37,12 +38,13 @@ export function MermaidPanel({
   onFixError,
   latestMermaidCode,
   isMermaidUpdating,
+  onDocumentChange,
 }: MermaidPanelProps) {
   const plugins = useMemo(
     () => [
+      createContextMenuPlugin(),
       createTransformPlugin(),
-      createExportPlugin(),
-      createCodeViewPlugin(),
+      createDocViewPlugin(),
       createNodeSelectionPlugin({ onNodeSelect: onAppendInputText }),
     ],
     [onAppendInputText]
@@ -90,6 +92,9 @@ export function MermaidPanel({
             plugins={plugins}
             isUpdating={isMermaidUpdating}
             onFixError={isViewingOldVersion ? undefined : onFixError}
+            conversationId={conversationDetail?.id}
+            documentContent={conversationDetail?.document}
+            onDocumentChange={onDocumentChange}
           />
           {isViewingOldVersion && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">

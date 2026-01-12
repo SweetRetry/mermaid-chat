@@ -1,6 +1,5 @@
 "use client"
 
-import { MODELS } from "@/lib/constants/models"
 import {
   PromptInput,
   PromptInputAttachment,
@@ -13,13 +12,6 @@ import {
   PromptInputTextarea,
   usePromptInputAttachments,
 } from "@workspace/ui/ai-elements/prompt-input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select"
 import { cn } from "@workspace/ui/lib/utils"
 import type { FileUIPart } from "ai"
 import { Brain, Globe, Paperclip } from "lucide-react"
@@ -34,8 +26,6 @@ interface ChatInputProps {
   disabled?: boolean
   placeholder?: string
   className?: string
-  model: string
-  onModelChange: (value: string) => void
   thinking?: boolean
   onThinkingChange?: (value: boolean) => void
   webSearch?: boolean
@@ -128,14 +118,11 @@ export function ChatInput({
   disabled,
   placeholder = "Describe the diagram you want to create...",
   className,
-  model,
-  onModelChange,
   thinking = false,
   onThinkingChange,
   webSearch = false,
   onWebSearchChange,
 }: ChatInputProps) {
-  const supportsFiles = model === "seed1.8"
 
   const handleSubmit = async (message: PromptInputMessage) => {
     const processed = await processMarkdownFiles(message)
@@ -156,32 +143,17 @@ export function ChatInput({
         />
       </PromptInputBody>
       <PromptInputFooter>
-        <AttachmentButton disabled={!supportsFiles} />
+        <AttachmentButton disabled={false} />
         <ThinkingButton active={thinking} onToggle={() => onThinkingChange?.(!thinking)} />
         <WebSearchButton active={webSearch} onToggle={() => onWebSearchChange?.(!webSearch)} />
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-3">
-          <Select value={model} onValueChange={onModelChange}>
-            <SelectTrigger size="sm">
-              <SelectValue placeholder="Model" />
-            </SelectTrigger>
-            <SelectContent>
-              {MODELS.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  {m.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <PromptInputSubmit
-            status={status}
-            disabled={disabled ?? status === "streaming"}
-            className="rounded-full shadow-md"
-          />
-        </div>
+        <PromptInputSubmit
+          status={status}
+          disabled={disabled ?? status === "streaming"}
+          className="rounded-full shadow-md"
+        />
       </PromptInputFooter>
     </PromptInput>
   )

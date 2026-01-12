@@ -1,4 +1,5 @@
 import type { Message } from "@/generated/prisma"
+import { MEMARID_RULES } from "@/lib/constants/mermaid_rules"
 import { prisma } from "@/lib/db"
 import {
   FilePart,
@@ -9,6 +10,8 @@ import {
   ToolSet,
   type ToolUIPart,
   type UIMessage,
+  type UIMessageChunk,
+  createUIMessageStreamResponse,
   streamText,
   tool,
 } from "ai"
@@ -17,53 +20,37 @@ import { z } from "zod"
 
 export const maxDuration = 60
 
-const SYSTEM_PROMPT = `You are a helpful assistant specialized in creating and modifying Mermaid diagrams.
+const SYSTEM_PROMPT = `You are a versatile assistant with professional expertise in various fields and a specialized talent for generating diagrams. You help users solve complex problems and visualize information using Mermaid.js. You MUST follow these rules for every diagram you create or modify:
 
-Core goals:
-- Be precise and conservative with edits.
-- Preserve all existing nodes, relationships, labels, and textual requirements unless the user explicitly asks to remove or replace them.
-- Prefer minimal, targeted changes over rewrites.
+### 🎯 CORE MISSION
+- **Versatile Expertise**: Provide high-quality assistance in various domains while leveraging your strength in visualization.
+- **Conservative Edits**: Maintain existing layout, node IDs, and styles unless changed.
+- **Syntactic Integrity**: Diagrams must be 100% valid and renderable.
+- **Multi-lingual**: Respond in the same language as the user.
 
-When the user asks you to create or modify a diagram:
-1. Use the update_chart tool to generate or update the Mermaid code.
-2. Always provide valid Mermaid syntax.
-3. Explain what you created or changed.
-4. Keep the original structure and content unless a change is explicitly requested.
-5. If a new request conflicts with prior requirements, ask a clarifying question instead of deleting or altering content.
+### 💬 INTERACTION FLOW
+Before generating or updating a diagram, evaluate whether the requirements are clear:
 
-IMPORTANT: When providing code to the update_chart tool:
-- Do NOT wrap the code in markdown code fences (\`\`\`mermaid or \`\`\`)
-- Provide ONLY the raw Mermaid diagram code starting with the diagram type (e.g., "flowchart TD", "sequenceDiagram", etc.)
+**When to ASK first (DO NOT call update_chart yet):**
+- The user's request is vague or open-ended (e.g., "help me draw a diagram", "visualize my idea")
+- Critical details are missing (e.g., what entities/nodes to include, relationships, diagram type)
+- The user is exploring options or brainstorming
+- You need to confirm the scope or structure of the diagram
 
-CRITICAL: Mermaid Syntax Rules (MUST follow strictly):
-1. Node labels MUST be quoted: Use NodeID["Label Text"] format, NOT NodeID[Label Text]
-2. Special characters in labels: If text contains (), [], {}, <>, #, &, or |, it MUST be inside double quotes
-3. Edge format: Use simple arrows like A --> B or A -->|label| B
-4. Examples of CORRECT syntax:
-   - A["Server-Sent Events (SSE)"]
-   - B["User Input & Output"]
-   - C["Array[T] Generic"]
-   - D["Step #1: Initialize"]
-5. Examples of INCORRECT syntax (will cause parse errors):
-   - A[Server-Sent Events (SSE)]  <-- parentheses not quoted
-   - B[User Input & Output]       <-- ampersand not quoted
-   - C[Array[T] Generic]          <-- nested brackets not quoted
+**When to GENERATE directly (call update_chart):**
+- The user provides specific, actionable requirements
+- The user explicitly asks to "draw", "create", "generate" with clear content
+- The user is requesting modifications to an existing diagram with clear instructions
+- The user confirms their requirements after your clarifying questions
 
-If the user is only asking questions, explanations, or analysis about the existing diagram, do not call the update_chart tool.
+When asking for clarification, be concise and specific. Offer 2-3 concrete options when appropriate.
 
-Supported diagram types:
-- flowchart (TD, LR, TB, RL directions)
-- sequenceDiagram
-- classDiagram
-- erDiagram
-- stateDiagram-v2
-- pie
-- gantt
-- mindmap
+### 🛠 TOOL USAGE: \`update_chart\`
+- Only call this tool when requirements are sufficiently clear.
+- Provide ONLY raw Mermaid code. NEVER wrap in markdown fences.
+- Use incremental diffs for updates.
 
-When modifying an existing chart, you will receive the current code. Apply incremental diffs only. Do not refactor or simplify unless asked.
-
-Always respond in the same language as the user's message.`
+${MEMARID_RULES}`
 
 /**
  * Strip markdown code fences from mermaid code if present.
@@ -76,14 +63,10 @@ function stripCodeFences(code: string): string {
   return match?.[1]?.trim() ?? trimmed
 }
 
-export type ModelId = "seed1.8"
+const MODEL_ID = "doubao-seed-1-8-251228"
 
-const MODEL_MAP: Record<ModelId, string> = {
-  "seed1.8": "doubao-seed-1-8-251228",
-}
-
-function getModel(modelId: ModelId) {
-  return volcengine(MODEL_MAP[modelId] ?? MODEL_MAP["seed1.8"])
+function getModel() {
+  return volcengine(MODEL_ID)
 }
 
 const HISTORY_ROUNDS = 6
@@ -114,7 +97,7 @@ function generateTitle(content: string): string {
 const TOOLS = {
   update_chart: tool({
     description:
-      "Create or update the Mermaid diagram. Use this whenever the user asks to create, modify, or update a diagram.",
+      "Create or update the Mermaid diagram. Only use this when the user's requirements are clear and specific. If requirements are vague, ask clarifying questions first.",
     inputSchema: z.object({
       code: z
         .string()
@@ -196,7 +179,7 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { userMessage, currentChart, model, thinking, webSearch, conversationId } = payload
+  const { userMessage, currentChart, thinking, webSearch, conversationId } = payload
 
   if (typeof currentChart !== "string" && currentChart !== undefined) {
     return new Response("Invalid request payload", { status: 400 })
@@ -206,7 +189,6 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload: missing user message", { status: 400 })
   }
 
-  const selectedModelId = (model as ModelId) ?? "seed1.8"
   const userParts = userMessage as MessagePart[]
   const userText = extractTextFromParts(userParts)
 
@@ -260,7 +242,7 @@ export async function POST(req: Request) {
     : TOOLS
 
   const result = streamText({
-    model: getModel(selectedModelId),
+    model: getModel(),
     system: systemPrompt,
     messages: modelMessages,
     tools: tools as unknown as ToolSet,
@@ -284,7 +266,6 @@ export async function POST(req: Request) {
               type: `tool-${tc.toolName}` as `tool-${string}`,
               toolCallId: tc.toolCallId,
               state: "output-available",
-              input: "input" in tc ? tc.input : undefined,
               output: res && "output" in res ? res.output : undefined,
             } as ToolUIPart)
           }
@@ -292,7 +273,6 @@ export async function POST(req: Request) {
 
         let latestChartCode: string | undefined
         if (toolResults) {
-          console.log(toolResults)
           const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
           if (chartResult && "output" in chartResult) {
             const output = chartResult.output as { code?: string }
@@ -347,5 +327,16 @@ export async function POST(req: Request) {
     },
   })
 
-  return result.toUIMessageStreamResponse()
+  // Filter out tool-input-delta events to reduce streaming overhead
+  const filteredStream = result.toUIMessageStream().pipeThrough(
+    new TransformStream<UIMessageChunk, UIMessageChunk>({
+      transform(chunk, controller) {
+        if (chunk.type !== "tool-input-delta") {
+          controller.enqueue(chunk)
+        }
+      },
+    })
+  )
+
+  return createUIMessageStreamResponse({ stream: filteredStream })
 }

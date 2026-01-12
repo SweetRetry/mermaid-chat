@@ -2,12 +2,23 @@
 
 import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
 import type { Conversation } from "@/types/chat"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@workspace/ui/components/alert-dialog"
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardFooter } from "@workspace/ui/components/card"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import { FileCode2, Trash2 } from "lucide-react"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 dayjs.extend(relativeTime)
 
@@ -27,9 +38,12 @@ export function ConversationCard({
 
   showPreview = true,
 }: ConversationCardProps) {
-  const handleDeleteClick = (e: React.MouseEvent) => {
+  const [open, setOpen] = useState(false)
+
+  const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation()
     onDelete(conversation.id)
+    setOpen(false)
   }
 
   const hueRotation = useMemo(() => {
@@ -70,15 +84,36 @@ export function ConversationCard({
           </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDeleteClick}
-          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100"
-          aria-label="Delete conversation"
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
+        <AlertDialog open={open} onOpenChange={setOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all duration-200"
+              aria-label="Delete conversation"
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+              <AlertDialogTitle>确认删除该对话？</AlertDialogTitle>
+              <AlertDialogDescription>
+                此操作将永久删除“{conversation.title || "未命名对话"}”及其所有内容，且无法撤销。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={(e) => e.stopPropagation()}>取消</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                确认删除
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
 
       <CardFooter className="flex-col items-start gap-1.5 p-3.5">

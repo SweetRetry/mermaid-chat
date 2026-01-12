@@ -45,7 +45,7 @@ export function ConversationCard({
           onSelect(conversation.id)
         }
       }}
-      className="p-0 overflow-hidden hover:shadow-md transition-shadow duration-300"
+      className="group p-0 overflow-hidden hover:shadow-md transition-shadow duration-300"
     >
       <CardContent className="relative p-0 aspect-video overflow-hidden">
         {conversation.latestChartCode && showPreview ? (

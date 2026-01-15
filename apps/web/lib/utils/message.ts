@@ -1,5 +1,5 @@
-import type { StoredMessage } from "@/types/chat"
 import type { UIMessage } from "@ai-sdk/react"
+import type { StoredMessage } from "@/types/chat"
 
 export function normalizeMessageParts(message: StoredMessage): UIMessage["parts"] {
   if (Array.isArray(message.parts) && message.parts.length > 0) {

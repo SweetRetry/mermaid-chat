@@ -1,7 +1,7 @@
 "use client"
 
-import { conversationKeys, fetchConversationDetail } from "@/lib/api/conversations"
 import { useQuery } from "@tanstack/react-query"
+import { conversationKeys, fetchConversationDetail } from "@/lib/api/conversations"
 
 /**
  * Hook for loading a specific conversation by ID.

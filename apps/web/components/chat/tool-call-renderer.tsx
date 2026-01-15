@@ -1,10 +1,10 @@
 "use client"
 
-import type { UpdateChartToolUIPart } from "@/types/tool"
 import { MessageResponse } from "@workspace/ui/ai-elements/message"
 import { Tool, ToolContent, ToolHeader } from "@workspace/ui/ai-elements/tool"
 import { Button } from "@workspace/ui/components/button"
 import { Eye } from "lucide-react"
+import type { UpdateChartToolUIPart } from "@/types/tool"
 
 interface ToolCallRendererProps {
   toolPart: UpdateChartToolUIPart

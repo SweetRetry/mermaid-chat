@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/db"
+import { asc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { conversations, db, messages } from "@/lib/db"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -8,11 +9,11 @@ interface RouteParams {
 export async function GET(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id },
-    include: {
+  const conversation = await db.query.conversations.findFirst({
+    where: eq(conversations.id, id),
+    with: {
       messages: {
-        orderBy: { createdAt: "asc" },
+        orderBy: asc(messages.createdAt),
       },
     },
   })
@@ -21,10 +22,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
-  const { messages, latestChartCode, document, ...rest } = conversation
+  const { messages: msgs, latestChartCode, document, ...rest } = conversation
 
   // Parse message content from JSON to restore full message parts
-  const parsedMessages = messages.map((msg) => {
+  const parsedMessages = msgs.map((msg) => {
     let parts: unknown[]
     try {
       parts = JSON.parse(msg.content)
@@ -58,10 +59,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Title is required" }, { status: 400 })
   }
 
-  const updated = await prisma.conversation.update({
-    where: { id },
-    data: { title: body.title.trim() },
-  })
+  const [updated] = await db
+    .update(conversations)
+    .set({ title: body.title.trim() })
+    .where(eq(conversations.id, id))
+    .returning()
 
   return NextResponse.json(updated)
 }
@@ -69,9 +71,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 export async function DELETE(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
-  await prisma.conversation.delete({
-    where: { id },
-  })
+  await db.delete(conversations).where(eq(conversations.id, id))
 
   return NextResponse.json({ success: true })
 }

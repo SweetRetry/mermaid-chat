@@ -1,6 +1,6 @@
-import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
+import { AUTH_COOKIE_NAME, verifyAuthToken } from "@/lib/auth"
 
 export async function proxy(request: NextRequest) {
   const password = process.env.SITE_PASSWORD

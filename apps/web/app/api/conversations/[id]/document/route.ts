@@ -1,7 +1,8 @@
-import { prisma } from "@/lib/db"
-import { streamText } from "ai"
 import { volcengine } from "@sweetretry/ai-sdk-volcengine-adapter"
+import { streamText } from "ai"
+import { eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
+import { conversations, db } from "@/lib/db"
 
 export const maxDuration = 60
 
@@ -31,9 +32,9 @@ Output format:
 export async function POST(request: Request, { params }: RouteParams) {
   const { id } = await params
 
-  const conversation = await prisma.conversation.findUnique({
-    where: { id },
-    select: { latestChartCode: true },
+  const conversation = await db.query.conversations.findFirst({
+    where: eq(conversations.id, id),
+    columns: { latestChartCode: true },
   })
 
   if (!conversation) {
@@ -50,10 +51,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     prompt: `Please convert this Mermaid diagram into comprehensive documentation:\n\n\`\`\`mermaid\n${conversation.latestChartCode}\n\`\`\``,
     async onFinish({ text }) {
       // Persist the generated document
-      await prisma.conversation.update({
-        where: { id },
-        data: { document: text },
-      })
+      await db.update(conversations).set({ document: text }).where(eq(conversations.id, id))
     },
   })
 
@@ -71,12 +69,13 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Document content is required" }, { status: 400 })
   }
 
-  const updated = await prisma.conversation.update({
-    where: { id },
-    data: { document: body.document },
-  })
+  const [updated] = await db
+    .update(conversations)
+    .set({ document: body.document })
+    .where(eq(conversations.id, id))
+    .returning({ document: conversations.document })
 
-  return NextResponse.json({ document: updated.document })
+  return NextResponse.json({ document: updated?.document ?? null })
 }
 
 /**
@@ -85,10 +84,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 export async function DELETE(_request: Request, { params }: RouteParams) {
   const { id } = await params
 
-  await prisma.conversation.update({
-    where: { id },
-    data: { document: null },
-  })
+  await db.update(conversations).set({ document: null }).where(eq(conversations.id, id))
 
   return NextResponse.json({ success: true })
 }

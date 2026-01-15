@@ -1,11 +1,11 @@
-import type { Conversation } from "@/types/chat"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   conversationKeys,
   createConversation as createConversationApi,
   deleteConversation as deleteConversationApi,
   fetchConversations,
 } from "@/lib/api/conversations"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { Conversation } from "@/types/chat"
 
 export function useConversations() {
   const queryClient = useQueryClient()

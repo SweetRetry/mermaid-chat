@@ -1,7 +1,5 @@
 "use client"
 
-import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
-import type { Conversation } from "@/types/chat"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +17,8 @@ import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
 import { FileCode2, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
+import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
+import type { Conversation } from "@/types/chat"
 
 dayjs.extend(relativeTime)
 

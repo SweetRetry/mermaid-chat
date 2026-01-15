@@ -1,6 +1,6 @@
-import type { UpdateChartToolUIPart } from "@/types/tool"
 import type { UIMessage } from "@ai-sdk/react"
 import { useEffect, useRef } from "react"
+import type { UpdateChartToolUIPart } from "@/types/tool"
 
 interface UseMermaidUpdatesOptions {
   messages: UIMessage[]

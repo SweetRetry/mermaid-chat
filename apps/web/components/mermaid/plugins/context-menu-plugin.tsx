@@ -1,6 +1,5 @@
 "use client"
 
-import { exportSvgToPng } from "@/lib/utils/svg-export"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -10,15 +9,10 @@ import {
 } from "@workspace/ui/components/context-menu"
 import { Check, Copy, Download, Loader2 } from "lucide-react"
 import { type ReactNode, useCallback, useState } from "react"
+import { exportSvgToPng } from "@/lib/utils/svg-export"
 import type { MermaidPlugin, MermaidPluginContext } from "./types"
 
-function ContextMenuWrapper({
-  children,
-  ctx,
-}: {
-  children: ReactNode
-  ctx: MermaidPluginContext
-}) {
+function ContextMenuWrapper({ children, ctx }: { children: ReactNode; ctx: MermaidPluginContext }) {
   const [copied, setCopied] = useState(false)
   const [exporting, setExporting] = useState(false)
 
@@ -67,8 +61,6 @@ function ContextMenuWrapper({
 export function createContextMenuPlugin(): MermaidPlugin {
   return {
     name: "context-menu",
-    wrapContainer: (children, ctx) => (
-      <ContextMenuWrapper ctx={ctx}>{children}</ContextMenuWrapper>
-    ),
+    wrapContainer: (children, ctx) => <ContextMenuWrapper ctx={ctx}>{children}</ContextMenuWrapper>,
   }
 }

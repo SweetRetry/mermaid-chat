@@ -1,7 +1,5 @@
 "use client"
 
-import { getMessageContent } from "@/lib/utils/message"
-import type { UpdateChartToolUIPart } from "@/types/tool"
 import type { UIMessage } from "@ai-sdk/react"
 import {
   Message,
@@ -10,12 +8,10 @@ import {
   MessageContent,
   MessageResponse,
 } from "@workspace/ui/ai-elements/message"
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "@workspace/ui/ai-elements/reasoning"
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@workspace/ui/ai-elements/reasoning"
 import type { FileUIPart, ReasoningUIPart } from "ai"
+import { getMessageContent } from "@/lib/utils/message"
+import type { UpdateChartToolUIPart } from "@/types/tool"
 import { ToolCallRenderer } from "./tool-call-renderer"
 
 interface ChatMessageProps {

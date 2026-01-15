@@ -1,22 +1,22 @@
-import type { Message } from "@/generated/prisma"
-import { MEMARID_RULES } from "@/lib/constants/mermaid_rules"
-import { prisma } from "@/lib/db"
 import { volcengine } from "@sweetretry/ai-sdk-volcengine-adapter"
 import {
-  FilePart,
-  FileUIPart,
+  createUIMessageStreamResponse,
+  type FilePart,
+  type FileUIPart,
   type ModelMessage,
-  TextPart,
-  TextUIPart,
-  ToolSet,
+  streamText,
+  type TextPart,
+  type TextUIPart,
+  type ToolSet,
   type ToolUIPart,
+  tool,
   type UIMessage,
   type UIMessageChunk,
-  createUIMessageStreamResponse,
-  streamText,
-  tool,
 } from "ai"
+import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
+import { MEMARID_RULES } from "@/lib/constants/mermaid_rules"
+import { conversations, db, type Message, messages } from "@/lib/db"
 
 export const maxDuration = 60
 
@@ -186,7 +186,9 @@ export async function POST(req: Request) {
   }
 
   if (!Array.isArray(userMessage) || userMessage.length === 0) {
-    return new Response("Invalid request payload: missing user message", { status: 400 })
+    return new Response("Invalid request payload: missing user message", {
+      status: 400,
+    })
   }
 
   const userParts = userMessage as MessagePart[]
@@ -196,12 +198,16 @@ export async function POST(req: Request) {
   let contextMessages: UIMessage[] = []
 
   if (typeof conversationId === "string") {
-    const storedMessages = await prisma.message.findMany({
-      where: { conversationId },
-      orderBy: { createdAt: "desc" },
-      take: HISTORY_MESSAGES,
-      select: { id: true, role: true, content: true },
-    })
+    const storedMessages = await db
+      .select({
+        id: messages.id,
+        role: messages.role,
+        content: messages.content,
+      })
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(HISTORY_MESSAGES)
 
     const parsedStored = storedMessages
       .slice()
@@ -215,11 +221,19 @@ export async function POST(req: Request) {
 
     contextMessages = [
       ...parsedStored,
-      { id: crypto.randomUUID(), role: "user" as const, parts: userParts as UIMessage["parts"] },
+      {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        parts: userParts as UIMessage["parts"],
+      },
     ].slice(-HISTORY_MESSAGES)
   } else {
     contextMessages = [
-      { id: crypto.randomUUID(), role: "user" as const, parts: userParts as UIMessage["parts"] },
+      {
+        id: crypto.randomUUID(),
+        role: "user" as const,
+        parts: userParts as UIMessage["parts"],
+      },
     ]
   }
 
@@ -230,16 +244,16 @@ export async function POST(req: Request) {
 
   const modelMessages = convertToModelMessages(contextMessages)
 
-
-  const tools = webSearch === true
-    ? {
-      ...TOOLS,
-      web_search: volcengine.tools.webSearch({
-        maxKeyword: 3,
-        limit: 10,
-      }),
-    }
-    : TOOLS
+  const tools =
+    webSearch === true
+      ? {
+          ...TOOLS,
+          web_search: volcengine.tools.webSearch({
+            maxKeyword: 3,
+            limit: 10,
+          }),
+        }
+      : TOOLS
 
   const result = streamText({
     model: getModel(),
@@ -288,38 +302,37 @@ export async function POST(req: Request) {
           .map((r) => r.text)
           .join("")
 
-        await prisma.$transaction(async (tx) => {
-          const existingMessage = await tx.message.findFirst({
-            where: { conversationId },
-            select: { id: true },
-          })
+        await db.transaction(async (tx) => {
+          const existingMessage = await tx
+            .select({ id: messages.id })
+            .from(messages)
+            .where(eq(messages.conversationId, conversationId))
+            .limit(1)
 
-          if (!existingMessage && userText) {
-            await tx.conversation.update({
-              where: { id: conversationId },
-              data: { title: generateTitle(userText) },
-            })
+          if (existingMessage.length === 0 && userText) {
+            await tx
+              .update(conversations)
+              .set({ title: generateTitle(userText) })
+              .where(eq(conversations.id, conversationId))
           }
 
-          await tx.message.createMany({
-            data: [
-              { conversationId, role: "user", content: JSON.stringify(userParts) },
-              {
-                conversationId,
-                role: "assistant",
-                content: JSON.stringify(assistantParts),
-                reasoning: reasoningText || null,
-              },
-            ],
-          })
+          await tx.insert(messages).values([
+            { conversationId, role: "user", content: JSON.stringify(userParts) },
+            {
+              conversationId,
+              role: "assistant",
+              content: JSON.stringify(assistantParts),
+              reasoning: reasoningText || null,
+            },
+          ])
 
-          await tx.conversation.update({
-            where: { id: conversationId },
-            data: {
+          await tx
+            .update(conversations)
+            .set({
               updatedAt: new Date(),
               ...(latestChartCode && { latestChartCode }),
-            },
-          })
+            })
+            .where(eq(conversations.id, conversationId))
         })
       } catch (error) {
         console.error("Failed to save messages:", error)

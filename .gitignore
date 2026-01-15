@@ -27,8 +27,10 @@ out/
 build
 dist
 
-# Prisma
-**/generated/prisma/
+# Drizzle
+**/drizzle/
+
+# Database
 *.db
 *.db-journal
 

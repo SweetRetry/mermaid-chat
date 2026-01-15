@@ -1,21 +1,21 @@
 "use client"
 
-import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
-import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
-import { useConversation } from "@/hooks/use-conversation"
-import { conversationKeys } from "@/lib/api/conversations"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@workspace/ui/components/resizable"
 import { Skeleton } from "@workspace/ui/components/skeleton"
-import { useQueryClient } from "@tanstack/react-query"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import type { Layout } from "react-resizable-panels"
+import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
+import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
+import { useConversation } from "@/hooks/use-conversation"
+import { conversationKeys } from "@/lib/api/conversations"
 
 interface AppShellProps {
   defaultLayout?: Layout

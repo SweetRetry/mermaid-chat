@@ -144,8 +144,6 @@ export function useDiagramTransform(
 
     if (availableWidth <= 0 || availableHeight <= 0) return
 
-
-
     // 5. CENTER TRANSFORM
     setTransform({ x: 0, y: 0, scale: 2 })
   }, [containerRef])

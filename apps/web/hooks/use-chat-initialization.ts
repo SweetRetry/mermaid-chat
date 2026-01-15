@@ -1,11 +1,11 @@
 "use client"
 
-import { convertToUIMessages } from "@/lib/utils/message"
-import { clearPendingMessage, loadPendingMessage } from "@/lib/utils/pending-message"
-import type { StoredMessage } from "@/types/chat"
 import type { UIMessage } from "@ai-sdk/react"
 import type { ChatRequestOptions, FileUIPart, TextPart } from "ai"
 import { useEffect, useRef, useState } from "react"
+import { convertToUIMessages } from "@/lib/utils/message"
+import { clearPendingMessage, loadPendingMessage } from "@/lib/utils/pending-message"
+import type { StoredMessage } from "@/types/chat"
 
 type SendMessageParam = {
   parts: (TextPart | FileUIPart)[]

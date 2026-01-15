@@ -1,5 +1,5 @@
-import { AUTH_COOKIE_NAME, COOKIE_MAX_AGE, generateAuthToken } from "@/lib/auth"
 import { NextResponse } from "next/server"
+import { AUTH_COOKIE_NAME, COOKIE_MAX_AGE, generateAuthToken } from "@/lib/auth"
 
 export async function POST(request: Request) {
   const password = process.env.SITE_PASSWORD

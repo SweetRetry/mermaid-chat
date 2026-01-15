@@ -46,13 +46,7 @@ function AttachmentButton({ disabled }: { disabled: boolean }) {
   )
 }
 
-function ThinkingButton({
-  active,
-  onToggle,
-}: {
-  active: boolean
-  onToggle: () => void
-}) {
+function ThinkingButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
     <PromptInputButton
       onClick={onToggle}
@@ -65,13 +59,7 @@ function ThinkingButton({
   )
 }
 
-function WebSearchButton({
-  active,
-  onToggle,
-}: {
-  active: boolean
-  onToggle: () => void
-}) {
+function WebSearchButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
     <PromptInputButton
       onClick={onToggle}
@@ -123,7 +111,6 @@ export function ChatInput({
   webSearch = false,
   onWebSearchChange,
 }: ChatInputProps) {
-
   const handleSubmit = async (message: PromptInputMessage) => {
     const processed = await processMarkdownFiles(message)
     onSubmit(processed)

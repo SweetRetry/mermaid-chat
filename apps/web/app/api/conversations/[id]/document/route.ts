@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db"
 import { streamText } from "ai"
-import { volcengine } from "ai-sdk-volcengine-adapter"
+import { volcengine } from "@sweetretry/ai-sdk-volcengine-adapter"
 import { NextResponse } from "next/server"
 
 export const maxDuration = 60

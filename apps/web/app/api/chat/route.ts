@@ -1,6 +1,7 @@
 import type { Message } from "@/generated/prisma"
 import { MEMARID_RULES } from "@/lib/constants/mermaid_rules"
 import { prisma } from "@/lib/db"
+import { volcengine } from "@sweetretry/ai-sdk-volcengine-adapter"
 import {
   FilePart,
   FileUIPart,
@@ -15,7 +16,6 @@ import {
   streamText,
   tool,
 } from "ai"
-import { volcengine, volcengineTools } from "ai-sdk-volcengine-adapter"
 import { z } from "zod"
 
 export const maxDuration = 60
@@ -234,7 +234,7 @@ export async function POST(req: Request) {
   const tools = webSearch === true
     ? {
       ...TOOLS,
-      web_search: volcengineTools.webSearch({
+      web_search: volcengine.tools.webSearch({
         maxKeyword: 3,
         limit: 10,
       }),

@@ -14,7 +14,7 @@ import { useChartUpdates } from "@/hooks/use-chart-updates"
 import { useChatInitialization } from "@/hooks/use-chat-initialization"
 import { convertToUIMessages } from "@/lib/utils/message"
 import type { ConversationDetail, StoredMessage } from "@/types/chat"
-import type { ChartType, UpdateChartToolInput } from "@/types/tool"
+import type { ChartsData, ChartTarget, ChartType } from "@/types/tool"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatInput, type ChatInputHandle } from "./chat-input"
 import { ChatMessage } from "./chat-message"
@@ -27,11 +27,11 @@ interface ChatPanelProps {
   onSelectChartMessage: (id: string | null) => void
   inputText: string
   onInputTextChange: (text: string) => void
-  latestChartCode: string
-  latestChartType: ChartType
-  setLatestChartCode: (code: string) => void
-  setLatestChartType: (type: ChartType) => void
+  charts: ChartsData
+  updateChart: (type: ChartType, code: string) => void
   setIsChartUpdating: (updating: boolean) => void
+  chartTarget: ChartTarget
+  onChartTargetChange: (target: ChartTarget) => void
 }
 
 export interface ChatPanelHandle {
@@ -48,11 +48,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     onSelectChartMessage,
     inputText,
     onInputTextChange,
-    latestChartCode,
-    latestChartType,
-    setLatestChartCode,
-    setLatestChartType,
+    charts,
+    updateChart,
     setIsChartUpdating,
+    chartTarget,
+    onChartTargetChange,
   },
   ref
 ) {
@@ -61,8 +61,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const [webSearch, setWebSearch] = useState(false)
 
   // Use ref to avoid stale closure in transport callback
-  const settingsRef = useRef({ thinking, webSearch, latestChartCode, latestChartType })
-  settingsRef.current = { thinking, webSearch, latestChartCode, latestChartType }
+  const settingsRef = useRef({ thinking, webSearch, charts, chartTarget })
+  settingsRef.current = { thinking, webSearch, charts, chartTarget }
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -76,8 +76,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           return {
             ...options,
             body: {
-              currentChart: settings.latestChartCode,
-              currentChartType: settings.latestChartType,
+              charts: settings.charts,
+              chartTarget: settings.chartTarget,
               thinking: settings.thinking,
               webSearch: settings.webSearch,
               conversationId,
@@ -96,12 +96,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     messages: initialUIMessages,
     transport,
     onToolCall: ({ toolCall }) => {
-      if (toolCall.toolName !== "update_chart" || toolCall.dynamic) return
-      const toolInput = toolCall.input as UpdateChartToolInput | undefined
+      if (toolCall.dynamic) return
+      const toolInput = toolCall.input as { code?: string } | undefined
       if (typeof toolInput?.code !== "string") return
-      setLatestChartCode(toolInput.code)
-      if (toolInput.chartType) {
-        setLatestChartType(toolInput.chartType)
+
+      if (toolCall.toolName === "update_mermaid_chart") {
+        updateChart("mermaid", toolInput.code)
+      } else if (toolCall.toolName === "update_echarts_chart") {
+        updateChart("echarts", toolInput.code)
       }
     },
   })
@@ -155,10 +157,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   // Handle chart updates from messages
   useChartUpdates({
     messages,
-    latestChartCode,
-    latestChartType,
-    setLatestChartCode,
-    setLatestChartType,
+    charts,
+    updateChart,
     setIsChartUpdating,
   })
 
@@ -227,6 +227,12 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           onThinkingChange={setThinking}
           webSearch={webSearch}
           onWebSearchChange={setWebSearch}
+          chartTarget={chartTarget}
+          onChartTargetChange={onChartTargetChange}
+          hasCharts={{
+            mermaid: Boolean(charts.mermaid?.code),
+            echarts: Boolean(charts.echarts?.code),
+          }}
         />
       </div>
     </div>

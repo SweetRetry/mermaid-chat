@@ -104,12 +104,6 @@ interface MermaidRendererProps {
   showError?: boolean
   /** Callback when user clicks "Fix Error" button */
   onFixError?: (error: string) => void
-  /** Conversation ID for document operations */
-  conversationId?: string
-  /** Current document content */
-  documentContent?: string | null
-  /** Callback when document changes */
-  onDocumentChange?: (document: string | null) => void
 }
 
 export const MermaidRenderer = memo(function MermaidRenderer({
@@ -121,9 +115,6 @@ export const MermaidRenderer = memo(function MermaidRenderer({
   showLoading = true,
   showError = true,
   onFixError,
-  conversationId,
-  documentContent,
-  onDocumentChange,
 }: MermaidRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const instanceId = useId()
@@ -204,19 +195,8 @@ export const MermaidRenderer = memo(function MermaidRenderer({
       containerRef,
       isUpdating,
       isParsing,
-      conversationId,
-      document: documentContent,
-      onDocumentChange,
     }),
-    [
-      deferredCode,
-      displaySvg,
-      isUpdating,
-      isParsing,
-      conversationId,
-      documentContent,
-      onDocumentChange,
-    ]
+    [deferredCode, displaySvg, isUpdating, isParsing]
   )
 
   // Merge container props from plugins (must be before any conditional returns)

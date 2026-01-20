@@ -106,6 +106,9 @@ export default function Page() {
               onThinkingChange={setThinking}
               webSearch={webSearch}
               onWebSearchChange={setWebSearch}
+              chartTarget="auto"
+              onChartTargetChange={() => {}}
+              hasCharts={{ mermaid: false, echarts: false }}
             />
 
             <div className="flex flex-wrap justify-center gap-2">

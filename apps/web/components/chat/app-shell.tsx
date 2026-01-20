@@ -1,6 +1,5 @@
 "use client"
 
-import { useQueryClient } from "@tanstack/react-query"
 import {
   ResizableHandle,
   ResizablePanel,
@@ -15,8 +14,7 @@ import type { Layout } from "react-resizable-panels"
 import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
 import { ChartPanel } from "@/components/chart/chart-panel"
 import { useConversation } from "@/hooks/use-conversation"
-import { conversationKeys } from "@/lib/api/conversations"
-import type { ChartType } from "@/types/tool"
+import type { ChartsData, ChartTarget, ChartType } from "@/types/tool"
 
 interface AppShellProps {
   defaultLayout?: Layout
@@ -25,30 +23,28 @@ interface AppShellProps {
 
 export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   const { conversationId } = useParams<{ conversationId: string }>()
-  const queryClient = useQueryClient()
   const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
   const [selectedChartMessageId, setSelectedChartMessageId] = useState<string | null>(null)
   const [inputText, setInputText] = useState("")
   const chatPanelRef = useRef<ChatPanelHandle>(null)
 
-  // State for streaming/override chart code and type (null = use conversation data)
-  const [streamingChartCode, setStreamingChartCode] = useState<string | null>(null)
-  const [streamingChartType, setStreamingChartType] = useState<ChartType | null>(null)
+  // State for streaming/override charts (null = use conversation data)
+  const [streamingCharts, setStreamingCharts] = useState<ChartsData>({})
   const [isChartUpdating, setIsChartUpdating] = useState(false)
+  const [chartTarget, setChartTarget] = useState<ChartTarget>("auto")
 
-  // Derive effective chart code and type: streaming override takes priority, then conversation data
-  const latestChartCode = streamingChartCode ?? conversationDetail?.latestChart?.code ?? ""
-  const latestChartType: ChartType =
-    streamingChartType ?? conversationDetail?.latestChart?.chartType ?? "mermaid"
+  // Merge streaming state with conversation data
+  const charts: ChartsData = {
+    mermaid: streamingCharts.mermaid ?? conversationDetail?.charts?.mermaid,
+    echarts: streamingCharts.echarts ?? conversationDetail?.charts?.echarts,
+  }
 
-  // Wrapper to set chart code (updates streaming state)
-  const setLatestChartCode = useCallback((code: string) => {
-    setStreamingChartCode(code)
-  }, [])
-
-  // Wrapper to set chart type (updates streaming state)
-  const setLatestChartType = useCallback((type: ChartType) => {
-    setStreamingChartType(type)
+  // Update a single chart
+  const updateChart = useCallback((type: ChartType, code: string) => {
+    setStreamingCharts((prev) => ({
+      ...prev,
+      [type]: { code, updatedAt: new Date().toISOString() },
+    }))
   }, [])
 
   const handleLayoutChange = useCallback(
@@ -69,14 +65,14 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   }, [])
 
   const handleFixError = useCallback(
-    (error: string) => {
-      const chartTypeName = latestChartType === "echarts" ? "ECharts" : "Mermaid"
+    (error: string, chartType: ChartType) => {
+      const chartTypeName = chartType === "echarts" ? "ECharts" : "Mermaid"
       const fixPrompt = `The ${chartTypeName} chart has a render error. Please fix it.
 
 Error: ${error}
 
 If this error is difficult to fix directly, try simplifying the syntax complexity while preserving the same semantic meaning.${
-        latestChartType === "mermaid"
+        chartType === "mermaid"
           ? ` For example:
 - Use shorter node labels or IDs
 - Replace complex subgraphs with simpler structures
@@ -92,22 +88,7 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
         setInputText("")
       })
     },
-    [latestChartType]
-  )
-
-  const handleDocumentChange = useCallback(
-    (document: string | null) => {
-      // Invalidate the conversation detail cache to refresh with new document
-      if (conversationId) {
-        queryClient.setQueryData(conversationKeys.detail(conversationId), (old: unknown) => {
-          if (old && typeof old === "object") {
-            return { ...old, document }
-          }
-          return old
-        })
-      }
-    },
-    [conversationId, queryClient]
+    []
   )
 
   const handleExportImage = useCallback((dataUrl: string) => {
@@ -147,10 +128,8 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
             isLoadingConversation={isLoadingConversation}
             onAppendInputText={handleAppendInputText}
             onFixError={handleFixError}
-            latestChartCode={latestChartCode}
-            latestChartType={latestChartType}
+            charts={charts}
             isChartUpdating={isChartUpdating}
-            onDocumentChange={handleDocumentChange}
             onExportImage={handleExportImage}
           />
         </ResizablePanel>
@@ -172,11 +151,11 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
             onSelectChartMessage={setSelectedChartMessageId}
             inputText={inputText}
             onInputTextChange={setInputText}
-            latestChartCode={latestChartCode}
-            latestChartType={latestChartType}
-            setLatestChartCode={setLatestChartCode}
-            setLatestChartType={setLatestChartType}
+            charts={charts}
+            updateChart={updateChart}
             setIsChartUpdating={setIsChartUpdating}
+            chartTarget={chartTarget}
+            onChartTargetChange={setChartTarget}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

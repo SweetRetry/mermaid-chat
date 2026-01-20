@@ -17,12 +17,12 @@ import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { ECHARTS_RULES } from "@/lib/constants/echarts_rules"
 import { MEMARID_RULES } from "@/lib/constants/mermaid_rules"
-import { conversations, db, type Message, messages } from "@/lib/db"
-import type { ChartType } from "@/types/tool"
+import { conversations, db, type Message, messages, type ChartsData } from "@/lib/db"
+import type { ChartTarget, ChartType } from "@/types/tool"
 
 export const maxDuration = 60
 
-const SYSTEM_PROMPT = `You are a friendly diagram/chart assistant. You create visualizations using Mermaid.js or ECharts.
+const BASE_SYSTEM_PROMPT = `You are a friendly diagram/chart assistant. You create visualizations using Mermaid.js or ECharts.
 
 ## Response Language
 Always respond in the user's language.
@@ -79,6 +79,40 @@ ${MEMARID_RULES}
 
 ${ECHARTS_RULES}`
 
+function getChartTargetPrompt(chartTarget: ChartTarget): string {
+  switch (chartTarget) {
+    case "mermaid":
+      return "\n\n## Chart Target Constraint\nThe user has explicitly selected Mermaid as the renderer. You MUST only call update_mermaid_chart. Do NOT use ECharts for this request."
+    case "echarts":
+      return "\n\n## Chart Target Constraint\nThe user has explicitly selected ECharts as the renderer. You MUST only call update_echarts_chart. Do NOT use Mermaid for this request."
+    case "both":
+      return "\n\n## Chart Target Constraint\nThe user wants BOTH charts to be updated. You MUST call both update_mermaid_chart AND update_echarts_chart in your response."
+    case "auto":
+    default:
+      return "\n\n## Chart Target Selection\nAutomatically decide which chart(s) to update based on the user's request. You can call one or both tools as appropriate. For complex scenarios (e.g., 'conversion funnel + event tracking flow'), consider using both tools."
+  }
+}
+
+function getChartContextPrompt(charts: ChartsData | undefined): string {
+  if (!charts || (!charts.mermaid && !charts.echarts)) {
+    return ""
+  }
+
+  const parts: string[] = ["\n\n## Current Charts"]
+
+  if (charts.mermaid?.code) {
+    parts.push(`\n### Mermaid Chart\n\`\`\`mermaid\n${charts.mermaid.code}\n\`\`\``)
+  }
+
+  if (charts.echarts?.code) {
+    parts.push(`\n### ECharts Chart\n\`\`\`json\n${charts.echarts.code}\n\`\`\``)
+  }
+
+  parts.push("\nWhen the user asks to modify an existing chart, use the code above as the base and apply the requested changes.")
+
+  return parts.join("")
+}
+
 /**
  * Strip markdown code fences from mermaid code if present.
  * Handles both \`\`\`mermaid ... \`\`\` and \`\`\` ... \`\`\` formats.
@@ -121,37 +155,53 @@ function generateTitle(content: string): string {
   return `${cleaned.substring(0, maxLength - 3)}...`
 }
 
-const TOOLS = {
-  update_chart: tool({
+const MERMAID_TOOL = {
+  update_mermaid_chart: tool({
     description:
-      "Create or update a chart/diagram. Choose chartType based on diagram needs: 'mermaid' for flowcharts, sequence diagrams, class diagrams, etc.; 'echarts' for funnel charts, pie charts, radar charts, gauges, etc. Only use this when requirements are clear.",
+      "Create or update a Mermaid diagram (flowchart, sequence, class, state, ER, Gantt, mindmap, etc.). Use for process flows, structural diagrams, and relationship visualizations.",
     inputSchema: z.object({
-      chartType: z
-        .enum(["mermaid", "echarts"])
-        .describe(
-          "REQUIRED. Chart renderer type. Use 'mermaid' for process/flow diagrams (flowchart, sequence, class, state, ER, gantt, mindmap). Use 'echarts' for statistical charts (funnel, pie, radar, gauge, scatter, heatmap, treemap). When updating an existing chart, keep the same chartType unless user explicitly requests a different type."
-        ),
       code: z
         .string()
         .describe(
-          "For Mermaid: Raw diagram code WITHOUT markdown fences, starting with diagram type (e.g., 'flowchart TD'). For ECharts: Valid JSON configuration object for echarts.setOption()."
+          "Raw Mermaid diagram code WITHOUT markdown fences, starting with diagram type (e.g., 'flowchart TD', 'sequenceDiagram', 'classDiagram')."
         ),
       description: z.string().describe("Brief description of what was created or changed"),
     }),
-    execute: async ({
-      chartType,
-      code,
-      description,
-    }: {
-      chartType: ChartType
-      code: string
-      description: string
-    }) => {
-      // Strip markdown code fences if the AI included them
+    execute: async ({ code, description }: { code: string; description: string }) => {
       const cleanCode = stripCodeFences(code)
-      return { success: true, chartType, code: cleanCode, description }
+      return { success: true, chartType: "mermaid" as const, code: cleanCode, description }
     },
   }),
+}
+
+const ECHARTS_TOOL = {
+  update_echarts_chart: tool({
+    description:
+      "Create or update an ECharts chart (funnel, pie, bar, line, radar, gauge, scatter, heatmap, treemap, etc.). Use for statistical data, metrics, and numerical visualizations.",
+    inputSchema: z.object({
+      code: z
+        .string()
+        .describe("Valid JSON configuration object for echarts.setOption(). Must be valid JSON."),
+      description: z.string().describe("Brief description of what was created or changed"),
+    }),
+    execute: async ({ code, description }: { code: string; description: string }) => {
+      const cleanCode = stripCodeFences(code)
+      return { success: true, chartType: "echarts" as const, code: cleanCode, description }
+    },
+  }),
+}
+
+function getTools(chartTarget: ChartTarget) {
+  switch (chartTarget) {
+    case "mermaid":
+      return MERMAID_TOOL
+    case "echarts":
+      return ECHARTS_TOOL
+    case "both":
+    case "auto":
+    default:
+      return { ...MERMAID_TOOL, ...ECHARTS_TOOL }
+  }
 }
 
 type MessagePart = TextUIPart | FileUIPart
@@ -219,14 +269,17 @@ export async function POST(req: Request) {
     return new Response("Invalid request payload", { status: 400 })
   }
 
-  const { userMessage, currentChart, currentChartType, thinking, webSearch, conversationId } =
-    payload
+  const { userMessage, charts, chartTarget, thinking, webSearch, conversationId } = payload
 
-  if (typeof currentChart !== "string" && currentChart !== undefined) {
-    return new Response("Invalid request payload", { status: 400 })
+  // Validate charts is an object or undefined
+  if (charts !== undefined && (typeof charts !== "object" || charts === null)) {
+    return new Response("Invalid request payload: charts must be an object", { status: 400 })
   }
 
-  const chartType = currentChartType === "echarts" ? "echarts" : "mermaid"
+  const currentCharts = charts as ChartsData | undefined
+  const validChartTarget = (
+    ["auto", "mermaid", "echarts", "both"].includes(chartTarget as string) ? chartTarget : "auto"
+  ) as ChartTarget
 
   if (!Array.isArray(userMessage) || userMessage.length === 0) {
     return new Response("Invalid request payload: missing user message", {
@@ -280,38 +333,26 @@ export async function POST(req: Request) {
     ]
   }
 
-  // Append current chart context to user message instead of system prompt
-  // This keeps system prompt stable for better caching and clearer separation
-  if (typeof currentChart === "string") {
-    const lastMessage = contextMessages[contextMessages.length - 1]
-    if (lastMessage?.role === "user") {
-      const chartContext = `\n\n[Current ${chartType} chart - maintain same chartType unless explicitly requested otherwise]\n\`\`\`${chartType === "echarts" ? "json" : "mermaid"}\n${currentChart}\n\`\`\``
-      // Find text part and append context
-      const textPart = lastMessage.parts.find((p): p is TextUIPart => p.type === "text")
-      if (textPart) {
-        textPart.text += chartContext
-      } else {
-        lastMessage.parts.push({ type: "text", text: chartContext })
-      }
-    }
-  }
-
   const modelMessages = convertToModelMessages(contextMessages)
 
+  const chartTools = getTools(validChartTarget)
   const tools =
     webSearch === true
       ? {
-          ...TOOLS,
+          ...chartTools,
           web_search: volcengine.tools.webSearch({
             maxKeyword: 3,
             limit: 10,
           }),
         }
-      : TOOLS
+      : chartTools
+
+  const systemPrompt =
+    BASE_SYSTEM_PROMPT + getChartTargetPrompt(validChartTarget) + getChartContextPrompt(currentCharts)
 
   const result = streamText({
     model: getModel(),
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: modelMessages,
     tools: tools as unknown as ToolSet,
     providerOptions: {
@@ -339,15 +380,17 @@ export async function POST(req: Request) {
           }
         }
 
-        let latestChartCode: string | undefined
-        let latestChartType: ChartType | undefined
+        // Collect chart updates from tool results
+        let chartsUpdate: ChartsData | undefined
         if (toolResults) {
-          const chartResult = toolResults.find((tr) => tr.toolName === "update_chart")
-          if (chartResult && "output" in chartResult) {
-            const output = chartResult.output as { code?: string; chartType?: ChartType }
-            if (output?.code) {
-              latestChartCode = output.code
-              latestChartType = output.chartType ?? "mermaid"
+          const now = new Date().toISOString()
+          for (const tr of toolResults) {
+            if ("output" in tr) {
+              const output = tr.output as { code?: string; chartType?: ChartType }
+              if (output?.code && output?.chartType) {
+                chartsUpdate = chartsUpdate ?? {}
+                chartsUpdate[output.chartType] = { code: output.code, updatedAt: now }
+              }
             }
           }
         }
@@ -382,12 +425,23 @@ export async function POST(req: Request) {
             },
           ])
 
+          // Merge new chart updates with existing charts
+          let finalCharts: ChartsData | undefined
+          if (chartsUpdate) {
+            const existing = await tx
+              .select({ charts: conversations.charts })
+              .from(conversations)
+              .where(eq(conversations.id, conversationId))
+              .limit(1)
+            const existingCharts = (existing[0]?.charts as ChartsData) ?? {}
+            finalCharts = { ...existingCharts, ...chartsUpdate }
+          }
+
           await tx
             .update(conversations)
             .set({
               updatedAt: new Date(),
-              ...(latestChartCode && { latestChartCode }),
-              ...(latestChartType && { latestChartType }),
+              ...(finalCharts && { charts: finalCharts }),
             })
             .where(eq(conversations.id, conversationId))
         })

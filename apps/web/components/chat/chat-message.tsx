@@ -22,9 +22,13 @@ interface ChatMessageProps {
 export function ChatMessage({ message, onSelectChartMessage }: ChatMessageProps) {
   const content = getMessageContent(message)
 
-  const updateChartTool = (message.parts || []).find((part) => part.type === "tool-update_chart") as
-    | UpdateChartToolUIPart
-    | undefined
+  const mermaidTool = (message.parts || []).find(
+    (part) => part.type === "tool-update_mermaid_chart"
+  ) as UpdateChartToolUIPart | undefined
+
+  const echartsTool = (message.parts || []).find(
+    (part) => part.type === "tool-update_echarts_chart"
+  ) as UpdateChartToolUIPart | undefined
 
   const fileParts = (message.parts || []).filter((part) => part.type === "file") as FileUIPart[]
 
@@ -55,9 +59,18 @@ export function ChatMessage({ message, onSelectChartMessage }: ChatMessageProps)
         ) : (
           content && <div className="whitespace-pre-wrap">{content}</div>
         )}
-        {updateChartTool && (
+        {mermaidTool && (
           <ToolCallRenderer
-            toolPart={updateChartTool}
+            toolPart={mermaidTool}
+            toolType="update_mermaid_chart"
+            messageId={message.id}
+            onSelectChartMessage={onSelectChartMessage}
+          />
+        )}
+        {echartsTool && (
+          <ToolCallRenderer
+            toolPart={echartsTool}
+            toolType="update_echarts_chart"
             messageId={message.id}
             onSelectChartMessage={onSelectChartMessage}
           />

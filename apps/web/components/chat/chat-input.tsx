@@ -16,6 +16,8 @@ import { cn } from "@workspace/ui/lib/utils"
 import type { FileUIPart } from "ai"
 import { Brain, Globe, Paperclip } from "lucide-react"
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
+import type { ChartTarget } from "@/types/tool"
+import { ChartTargetSelector } from "./chart-target-selector"
 
 const ACCEPT_STRING = "image/*,video/*,text/markdown,.md"
 
@@ -35,6 +37,9 @@ interface ChatInputProps {
   onThinkingChange?: (value: boolean) => void
   webSearch?: boolean
   onWebSearchChange?: (value: boolean) => void
+  chartTarget: ChartTarget
+  onChartTargetChange: (target: ChartTarget) => void
+  hasCharts: { mermaid: boolean; echarts: boolean }
 }
 
 function AttachmentButton({ disabled }: { disabled: boolean }) {
@@ -135,6 +140,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     onThinkingChange,
     webSearch = false,
     onWebSearchChange,
+    chartTarget,
+    onChartTargetChange,
+    hasCharts,
   },
   ref
 ) {
@@ -170,6 +178,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         />
       </PromptInputBody>
       <PromptInputFooter>
+        <ChartTargetSelector
+          value={chartTarget}
+          onChange={onChartTargetChange}
+          hasCharts={hasCharts}
+        />
         <AttachmentButton disabled={false} />
         <ThinkingButton active={thinking} onToggle={() => onThinkingChange?.(!thinking)} />
         <WebSearchButton active={webSearch} onToggle={() => onWebSearchChange?.(!webSearch)} />

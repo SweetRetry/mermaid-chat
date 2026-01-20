@@ -15,9 +15,10 @@ import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent, CardFooter } from "@workspace/ui/components/card"
 import dayjs from "dayjs"
 import relativeTime from "dayjs/plugin/relativeTime"
-import { FileCode2, Trash2 } from "lucide-react"
+import { BarChart3, FileCode2, GitBranch, Trash2 } from "lucide-react"
 import { useMemo, useState } from "react"
 import { MermaidRenderer } from "@/components/mermaid/mermaid-renderer"
+import { EChartsRenderer } from "@/components/echarts/echarts-renderer"
 import type { Conversation } from "@/types/chat"
 
 dayjs.extend(relativeTime)
@@ -62,12 +63,19 @@ export function ConversationCard({
       className="group p-0 overflow-hidden hover:shadow-md transition-shadow duration-300"
     >
       <CardContent className="relative p-0 aspect-video overflow-hidden">
-        {conversation.latestChartCode && showPreview ? (
+        {conversation.charts?.mermaid?.code && showPreview ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <MermaidRenderer
-              code={conversation.latestChartCode}
+              code={conversation.charts.mermaid.code}
               showLoading={false}
               showError={false}
+              className="size-full pointer-events-none scale-90"
+            />
+          </div>
+        ) : conversation.charts?.echarts?.code && showPreview ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <EChartsRenderer
+              code={conversation.charts.echarts.code}
               className="size-full pointer-events-none scale-90"
             />
           </div>
@@ -118,7 +126,12 @@ export function ConversationCard({
 
       <CardFooter className="flex-col items-start gap-1.5 p-3.5">
         <div className="flex items-center gap-2 w-full">
-          {conversation.latestChartCode && <FileCode2 className="size-3.5 text-primary shrink-0" />}
+          {conversation.charts?.mermaid?.code && (
+            <GitBranch className="size-3.5 text-primary shrink-0" />
+          )}
+          {conversation.charts?.echarts?.code && (
+            <BarChart3 className="size-3.5 text-primary shrink-0" />
+          )}
           <span className="font-bold text-sm truncate leading-tight flex-1">
             {conversation.title || "Untitled Conversation"}
           </span>

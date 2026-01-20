@@ -1,5 +1,5 @@
 import type { UIMessage } from "@ai-sdk/react"
-import type { ChartType } from "./tool"
+import type { ChartsData } from "./tool"
 
 export interface StoredMessage {
   id: string
@@ -13,14 +13,12 @@ export interface ConversationDetail {
   id: string
   title: string
   messages: StoredMessage[]
-  latestChart: { code: string; chartType: ChartType } | null
-  document: string | null
+  charts: ChartsData | null
 }
 
 export interface Conversation {
   id: string
   title: string
   updatedAt: Date | string
-  latestChartCode: string | null
-  latestChartType: ChartType | null
+  charts: ChartsData | null
 }

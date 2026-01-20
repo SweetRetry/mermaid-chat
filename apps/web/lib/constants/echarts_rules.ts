@@ -96,7 +96,20 @@ Output ONLY valid JSON for echarts.setOption(). The JSON must be parseable by \`
 **For formatters, use string templates:**
 - \`"formatter": "{b}\\n{c}"\` - template variables
 - \`{a}\` = series name, \`{b}\` = data name, \`{c}\` = value, \`{d}\` = percentage
-- For custom text per item, put it in the data's \`name\` field
+
+**CRITICAL: Custom data fields cannot be accessed in formatters!**
+- \`{data.xxx}\` or \`{@xxx}\` syntax does NOT work in JSON (requires functions)
+- To show custom info (tracking points, IDs, etc.), put ALL text in the \`name\` field:
+\`\`\`json
+{
+  "data": [
+    { "value": 10000, "name": "访问首页\\n埋点ID: page_view\\n技术: 页面曝光埋点" },
+    { "value": 7500, "name": "点击商品\\n埋点ID: click_product\\n技术: 元素点击埋点" }
+  ],
+  "label": { "formatter": "{b}\\n用户: {c}" }
+}
+\`\`\`
+The \`name\` field content will be shown via \`{b}\` in formatters.
 
 **Do NOT wrap output:**
 - No markdown fences (\`\`\`json ... \`\`\`)

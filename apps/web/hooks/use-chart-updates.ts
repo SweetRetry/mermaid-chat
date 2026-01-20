@@ -1,13 +1,11 @@
 import type { UIMessage } from "@ai-sdk/react"
 import { useEffect, useRef } from "react"
-import type { ChartType, UpdateChartToolUIPart } from "@/types/tool"
+import type { ChartsData, ChartType, UpdateChartToolUIPart } from "@/types/tool"
 
 interface UseChartUpdatesOptions {
   messages: UIMessage[]
-  latestChartCode: string
-  latestChartType: ChartType
-  setLatestChartCode: (code: string) => void
-  setLatestChartType: (type: ChartType) => void
+  charts: ChartsData
+  updateChart: (type: ChartType, code: string) => void
   setIsChartUpdating: (updating: boolean) => void
 }
 
@@ -17,17 +15,15 @@ interface UseChartUpdatesOptions {
  */
 export function useChartUpdates({
   messages,
-  latestChartCode,
-  latestChartType,
-  setLatestChartCode,
-  setLatestChartType,
+  charts,
+  updateChart,
   setIsChartUpdating,
 }: UseChartUpdatesOptions) {
   // Use refs to track current chart state to avoid re-render cycles
-  const currentChartRef = useRef({ code: latestChartCode, type: latestChartType })
+  const currentChartsRef = useRef(charts)
   useEffect(() => {
-    currentChartRef.current = { code: latestChartCode, type: latestChartType }
-  }, [latestChartCode, latestChartType])
+    currentChartsRef.current = charts
+  }, [charts])
 
   useEffect(() => {
     if (messages.length === 0) {
@@ -37,45 +33,63 @@ export function useChartUpdates({
 
     let isUpdating = false
 
-    // Scan backwards for the latest assistant message containing an update_chart tool call
+    // Scan backwards for the latest assistant message containing chart tool calls
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i]
       if (!msg || msg.role !== "assistant") continue
 
       const parts = msg.parts || []
-      const updatePart = parts.find((p) => p.type === "tool-update_chart") as
+
+      // Check for Mermaid chart updates
+      const mermaidPart = parts.find((p) => p.type === "tool-update_mermaid_chart") as
         | UpdateChartToolUIPart
         | undefined
 
-      if (updatePart) {
-        // If the tool is still in progress (streaming or called but not finished), mark as updating
-        const isStreaming = updatePart.state !== "output-available"
+      // Check for ECharts updates
+      const echartsPart = parts.find((p) => p.type === "tool-update_echarts_chart") as
+        | UpdateChartToolUIPart
+        | undefined
+
+      let foundUpdate = false
+
+      if (mermaidPart) {
+        foundUpdate = true
+        const isStreaming = mermaidPart.state !== "output-available"
         const code = isStreaming
-          ? updatePart.input?.code
-          : updatePart.output?.code || updatePart.input?.code
-        const chartType = isStreaming
-          ? updatePart.input?.chartType
-          : updatePart.output?.chartType || updatePart.input?.chartType
+          ? mermaidPart.input?.code
+          : mermaidPart.output?.code || mermaidPart.input?.code
 
         if (isStreaming) {
           isUpdating = true
         }
 
         // Only update if the code has actually changed
-        if (code && code !== currentChartRef.current.code) {
-          setLatestChartCode(code)
+        if (code && code !== currentChartsRef.current.mermaid?.code) {
+          updateChart("mermaid", code)
         }
-
-        // Update chart type if it has changed
-        if (chartType && chartType !== currentChartRef.current.type) {
-          setLatestChartType(chartType)
-        }
-
-        // We only care about the very latest update_chart call
-        break
       }
+
+      if (echartsPart) {
+        foundUpdate = true
+        const isStreaming = echartsPart.state !== "output-available"
+        const code = isStreaming
+          ? echartsPart.input?.code
+          : echartsPart.output?.code || echartsPart.input?.code
+
+        if (isStreaming) {
+          isUpdating = true
+        }
+
+        // Only update if the code has actually changed
+        if (code && code !== currentChartsRef.current.echarts?.code) {
+          updateChart("echarts", code)
+        }
+      }
+
+      // We only care about the very latest message with chart updates
+      if (foundUpdate) break
     }
 
     setIsChartUpdating(isUpdating)
-  }, [messages, setIsChartUpdating, setLatestChartCode, setLatestChartType])
+  }, [messages, setIsChartUpdating, updateChart])
 }

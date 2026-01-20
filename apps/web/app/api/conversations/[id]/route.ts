@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm"
 import { NextResponse } from "next/server"
-import { conversations, db, messages } from "@/lib/db"
+import { conversations, db, messages, type ChartsData } from "@/lib/db"
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -22,7 +22,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "Conversation not found" }, { status: 404 })
   }
 
-  const { messages: msgs, latestChartCode, latestChartType, document, ...rest } = conversation
+  const { messages: msgs, charts, ...rest } = conversation
 
   // Parse message content from JSON to restore full message parts
   const parsedMessages = msgs.map((msg) => {
@@ -46,10 +46,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return NextResponse.json({
     ...rest,
     messages: parsedMessages,
-    latestChart: latestChartCode
-      ? { code: latestChartCode, chartType: latestChartType ?? "mermaid" }
-      : null,
-    document,
+    charts: (charts as ChartsData) ?? null,
   })
 }
 

@@ -8,7 +8,7 @@ export async function GET() {
       id: conversations.id,
       title: conversations.title,
       updatedAt: conversations.updatedAt,
-      latestChartCode: conversations.latestChartCode,
+      charts: conversations.charts,
     })
     .from(conversations)
     .orderBy(desc(conversations.updatedAt))

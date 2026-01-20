@@ -1,14 +1,18 @@
 import { relations } from "drizzle-orm"
-import { index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
+import { index, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core"
+
+/** Shape of the charts JSON field storing multiple chart states */
+export interface ChartsData {
+  mermaid?: { code: string; updatedAt: string }
+  echarts?: { code: string; updatedAt: string }
+}
 
 export const conversations = pgTable(
   "conversations",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
-    latestChartCode: text("latest_chart_code"),
-    latestChartType: text("latest_chart_type").default("mermaid"),
-    document: text("document"),
+    charts: jsonb("charts").$type<ChartsData>(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

@@ -17,27 +17,23 @@ export function ToolCallRenderer({
   messageId,
   onSelectChartMessage,
 }: ToolCallRendererProps) {
-  const description =
-    toolPart.state === "output-available"
-      ? toolPart.output?.description
-      : toolPart.input?.description
-  const code = toolPart.state === "output-available" ? toolPart.output?.code : toolPart.input?.code
-  const chartType =
-    toolPart.state === "output-available"
-      ? toolPart.output?.chartType || toolPart.input?.chartType
-      : toolPart.input?.chartType
+  const isComplete = toolPart.state === "output-available"
+  const description = isComplete ? toolPart.output?.description : toolPart.input?.description
+  const code = isComplete ? toolPart.output?.code : toolPart.input?.code
+  const chartType = isComplete
+    ? toolPart.output?.chartType || toolPart.input?.chartType
+    : toolPart.input?.chartType
 
   const isECharts = chartType === "echarts"
+  // Only show specific chart type when we're certain (output available or input has chartType)
+  const hasChartType = Boolean(chartType)
   const ChartIcon = isECharts ? BarChart3 : GitBranch
-  const chartLabel = isECharts ? "ECharts" : "Mermaid"
+  const chartLabel = hasChartType ? (isECharts ? "ECharts" : "Mermaid") : ""
+  const titleLabel = hasChartType ? `Update ${chartLabel} Chart` : "Updating Chart..."
 
   return (
     <Tool key={toolPart.toolCallId} className="mt-4" defaultOpen={true}>
-      <ToolHeader
-        type="tool-update_chart"
-        state={toolPart.state}
-        title={`Update ${chartLabel} Chart`}
-      />
+      <ToolHeader type="tool-update_chart" state={toolPart.state} title={titleLabel} />
       <ToolContent className="space-y-4 px-4 py-4">
         {description && (
           <div className="space-y-1.5">
@@ -61,7 +57,7 @@ export function ToolCallRenderer({
           </div>
         )}
 
-        {code && (
+        {code && hasChartType && (
           <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
             <div className="flex items-center gap-2">
               <ChartIcon className="size-4 text-muted-foreground" />

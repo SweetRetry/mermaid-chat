@@ -7,6 +7,7 @@ export const conversations = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
     latestChartCode: text("latest_chart_code"),
+    latestChartType: text("latest_chart_type").default("mermaid"),
     document: text("document"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })

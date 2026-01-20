@@ -10,13 +10,13 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 import { cn } from "@workspace/ui/lib/utils"
 import { DefaultChatTransport, type FileUIPart } from "ai"
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from "react"
+import { useChartUpdates } from "@/hooks/use-chart-updates"
 import { useChatInitialization } from "@/hooks/use-chat-initialization"
-import { useMermaidUpdates } from "@/hooks/use-mermaid-updates"
 import { convertToUIMessages } from "@/lib/utils/message"
 import type { ConversationDetail, StoredMessage } from "@/types/chat"
-import type { UpdateChartToolInput } from "@/types/tool"
+import type { ChartType, UpdateChartToolInput } from "@/types/tool"
 import { ChatEmptyState } from "./chat-empty-state"
-import { ChatInput } from "./chat-input"
+import { ChatInput, type ChatInputHandle } from "./chat-input"
 import { ChatMessage } from "./chat-message"
 
 interface ChatPanelProps {
@@ -24,16 +24,19 @@ interface ChatPanelProps {
   conversationId?: string
   conversationDetail: ConversationDetail | null
   isLoadingConversation: boolean
-  onSelectMermaidMessage: (id: string | null) => void
+  onSelectChartMessage: (id: string | null) => void
   inputText: string
   onInputTextChange: (text: string) => void
-  latestMermaidCode: string
-  setLatestMermaidCode: (code: string) => void
-  setIsMermaidUpdating: (updating: boolean) => void
+  latestChartCode: string
+  latestChartType: ChartType
+  setLatestChartCode: (code: string) => void
+  setLatestChartType: (type: ChartType) => void
+  setIsChartUpdating: (updating: boolean) => void
 }
 
 export interface ChatPanelHandle {
   sendTextMessage: (text: string) => void
+  addImageAttachment: (dataUrl: string, filename?: string) => void
 }
 
 export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function ChatPanel(
@@ -42,12 +45,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     conversationId,
     conversationDetail,
     isLoadingConversation,
-    onSelectMermaidMessage,
+    onSelectChartMessage,
     inputText,
     onInputTextChange,
-    latestMermaidCode,
-    setLatestMermaidCode,
-    setIsMermaidUpdating,
+    latestChartCode,
+    latestChartType,
+    setLatestChartCode,
+    setLatestChartType,
+    setIsChartUpdating,
   },
   ref
 ) {
@@ -56,8 +61,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
   const [webSearch, setWebSearch] = useState(false)
 
   // Use ref to avoid stale closure in transport callback
-  const settingsRef = useRef({ thinking, webSearch, latestMermaidCode })
-  settingsRef.current = { thinking, webSearch, latestMermaidCode }
+  const settingsRef = useRef({ thinking, webSearch, latestChartCode, latestChartType })
+  settingsRef.current = { thinking, webSearch, latestChartCode, latestChartType }
 
   const initialMessages: StoredMessage[] = conversationDetail?.messages ?? []
 
@@ -71,7 +76,8 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
           return {
             ...options,
             body: {
-              currentChart: settings.latestMermaidCode,
+              currentChart: settings.latestChartCode,
+              currentChartType: settings.latestChartType,
               thinking: settings.thinking,
               webSearch: settings.webSearch,
               conversationId,
@@ -93,9 +99,15 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       if (toolCall.toolName !== "update_chart" || toolCall.dynamic) return
       const toolInput = toolCall.input as UpdateChartToolInput | undefined
       if (typeof toolInput?.code !== "string") return
-      setLatestMermaidCode(toolInput.code)
+      setLatestChartCode(toolInput.code)
+      if (toolInput.chartType) {
+        setLatestChartType(toolInput.chartType)
+      }
     },
   })
+
+  // Ref for ChatInput to access its addAttachment method
+  const chatInputRef = useRef<ChatInputHandle>(null)
 
   useImperativeHandle(
     ref,
@@ -103,6 +115,28 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       sendTextMessage: (text: string) => {
         if (!text.trim() || status !== "ready") return
         sendMessage({ parts: [{ type: "text", text }] })
+      },
+      addImageAttachment: (dataUrl: string, filename = "chart.png") => {
+        // Convert data URL to File and add to ChatInput attachments
+        try {
+          // Parse data URL: data:image/png;base64,xxxx
+          const [header, base64Data] = dataUrl.split(",")
+          const mimeMatch = header?.match(/:(.*?);/)
+          const mimeType = mimeMatch?.[1] || "image/png"
+
+          // Decode base64 to binary
+          const binaryString = atob(base64Data || "")
+          const bytes = new Uint8Array(binaryString.length)
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i)
+          }
+
+          const blob = new Blob([bytes], { type: mimeType })
+          const file = new File([blob], filename, { type: mimeType })
+          chatInputRef.current?.addFiles([file])
+        } catch (err) {
+          console.error("Failed to convert image:", err)
+        }
       },
     }),
     [sendMessage, status]
@@ -118,12 +152,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
     setMessages,
   })
 
-  // Handle mermaid diagram updates from messages
-  useMermaidUpdates({
+  // Handle chart updates from messages
+  useChartUpdates({
     messages,
-    latestMermaidCode,
-    setLatestMermaidCode,
-    setIsMermaidUpdating,
+    latestChartCode,
+    latestChartType,
+    setLatestChartCode,
+    setLatestChartType,
+    setIsChartUpdating,
   })
 
   if (isLoadingConversation && !pendingMessage) {
@@ -160,7 +196,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
               <ChatMessage
                 key={message.id}
                 message={message}
-                onSelectMermaidMessage={onSelectMermaidMessage}
+                onSelectChartMessage={onSelectChartMessage}
               />
             ))
           )}
@@ -169,6 +205,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, ChatPanelProps>(function Ch
       </Conversation>
       <div className="p-4 bg-background shrink-0 z-10">
         <ChatInput
+          ref={chatInputRef}
           input={inputText}
           onInputChange={onInputTextChange}
           onSubmit={(message: PromptInputMessage) => {

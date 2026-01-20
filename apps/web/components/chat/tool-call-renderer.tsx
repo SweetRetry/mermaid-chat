@@ -3,29 +3,41 @@
 import { MessageResponse } from "@workspace/ui/ai-elements/message"
 import { Tool, ToolContent, ToolHeader } from "@workspace/ui/ai-elements/tool"
 import { Button } from "@workspace/ui/components/button"
-import { Eye } from "lucide-react"
+import { BarChart3, Eye, GitBranch } from "lucide-react"
 import type { UpdateChartToolUIPart } from "@/types/tool"
 
 interface ToolCallRendererProps {
   toolPart: UpdateChartToolUIPart
   messageId: string
-  onSelectMermaidMessage: (id: string | null) => void
+  onSelectChartMessage: (id: string | null) => void
 }
 
 export function ToolCallRenderer({
   toolPart,
   messageId,
-  onSelectMermaidMessage,
+  onSelectChartMessage,
 }: ToolCallRendererProps) {
   const description =
     toolPart.state === "output-available"
       ? toolPart.output?.description
       : toolPart.input?.description
   const code = toolPart.state === "output-available" ? toolPart.output?.code : toolPart.input?.code
+  const chartType =
+    toolPart.state === "output-available"
+      ? toolPart.output?.chartType || toolPart.input?.chartType
+      : toolPart.input?.chartType
+
+  const isECharts = chartType === "echarts"
+  const ChartIcon = isECharts ? BarChart3 : GitBranch
+  const chartLabel = isECharts ? "ECharts" : "Mermaid"
 
   return (
     <Tool key={toolPart.toolCallId} className="mt-4" defaultOpen={true}>
-      <ToolHeader type="tool-update_chart" state={toolPart.state} title="Update Diagram" />
+      <ToolHeader
+        type="tool-update_chart"
+        state={toolPart.state}
+        title={`Update ${chartLabel} Chart`}
+      />
       <ToolContent className="space-y-4 px-4 py-4">
         {description && (
           <div className="space-y-1.5">
@@ -51,17 +63,20 @@ export function ToolCallRenderer({
 
         {code && (
           <div className="flex items-center justify-between rounded-lg border bg-muted/20 px-3 py-2">
-            <div className="space-y-0.5">
-              <h4 className="font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
-                Diagram
-              </h4>
-              <p className="text-xs text-muted-foreground">View the Mermaid diagram.</p>
+            <div className="flex items-center gap-2">
+              <ChartIcon className="size-4 text-muted-foreground" />
+              <div className="space-y-0.5">
+                <h4 className="font-medium text-muted-foreground text-[10px] uppercase tracking-wider">
+                  {chartLabel} Chart
+                </h4>
+                <p className="text-xs text-muted-foreground">View the generated chart.</p>
+              </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
               className="gap-1.5"
-              onClick={() => onSelectMermaidMessage(messageId)}
+              onClick={() => onSelectChartMessage(messageId)}
             >
               <Eye className="size-4" />
               View

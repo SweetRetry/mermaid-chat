@@ -13,9 +13,10 @@ import { useParams } from "next/navigation"
 import { useCallback, useRef, useState } from "react"
 import type { Layout } from "react-resizable-panels"
 import { ChatPanel, type ChatPanelHandle } from "@/components/chat/chat-panel"
-import { MermaidPanel } from "@/components/mermaid/mermaid-panel"
+import { ChartPanel } from "@/components/chart/chart-panel"
 import { useConversation } from "@/hooks/use-conversation"
 import { conversationKeys } from "@/lib/api/conversations"
+import type { ChartType } from "@/types/tool"
 
 interface AppShellProps {
   defaultLayout?: Layout
@@ -26,21 +27,28 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
   const { conversationId } = useParams<{ conversationId: string }>()
   const queryClient = useQueryClient()
   const { conversationDetail, isLoading: isLoadingConversation } = useConversation(conversationId)
-  const [selectedMermaidMessageId, setSelectedMermaidMessageId] = useState<string | null>(null)
+  const [selectedChartMessageId, setSelectedChartMessageId] = useState<string | null>(null)
   const [inputText, setInputText] = useState("")
   const chatPanelRef = useRef<ChatPanelHandle>(null)
 
-  // State for streaming/override mermaid code (null = use conversation data)
-  const [streamingMermaidCode, setStreamingMermaidCode] = useState<string | null>(null)
-  const [isMermaidUpdating, setIsMermaidUpdating] = useState(false)
+  // State for streaming/override chart code and type (null = use conversation data)
+  const [streamingChartCode, setStreamingChartCode] = useState<string | null>(null)
+  const [streamingChartType, setStreamingChartType] = useState<ChartType | null>(null)
+  const [isChartUpdating, setIsChartUpdating] = useState(false)
 
-  // Derive effective mermaid code: streaming override takes priority, then conversation data
-  const latestMermaidCode =
-    streamingMermaidCode ?? conversationDetail?.latestChart?.mermaidCode ?? ""
+  // Derive effective chart code and type: streaming override takes priority, then conversation data
+  const latestChartCode = streamingChartCode ?? conversationDetail?.latestChart?.code ?? ""
+  const latestChartType: ChartType =
+    streamingChartType ?? conversationDetail?.latestChart?.chartType ?? "mermaid"
 
-  // Wrapper to set mermaid code (updates streaming state)
-  const setLatestMermaidCode = useCallback((code: string) => {
-    setStreamingMermaidCode(code)
+  // Wrapper to set chart code (updates streaming state)
+  const setLatestChartCode = useCallback((code: string) => {
+    setStreamingChartCode(code)
+  }, [])
+
+  // Wrapper to set chart type (updates streaming state)
+  const setLatestChartType = useCallback((type: ChartType) => {
+    setStreamingChartType(type)
   }, [])
 
   const handleLayoutChange = useCallback(
@@ -60,21 +68,32 @@ export function AppShell({ defaultLayout, groupId }: AppShellProps) {
     })
   }, [])
 
-  const handleFixError = useCallback((error: string) => {
-    const fixPrompt = `The Mermaid diagram has a render error. Please fix it.
+  const handleFixError = useCallback(
+    (error: string) => {
+      const chartTypeName = latestChartType === "echarts" ? "ECharts" : "Mermaid"
+      const fixPrompt = `The ${chartTypeName} chart has a render error. Please fix it.
 
 Error: ${error}
 
-If this error is difficult to fix directly, try simplifying the syntax complexity while preserving the same semantic meaning. For example:
+If this error is difficult to fix directly, try simplifying the syntax complexity while preserving the same semantic meaning.${
+        latestChartType === "mermaid"
+          ? ` For example:
 - Use shorter node labels or IDs
 - Replace complex subgraphs with simpler structures
 - Avoid advanced features that may have compatibility issues`
-    setInputText(fixPrompt)
-    requestAnimationFrame(() => {
-      chatPanelRef.current?.sendTextMessage(fixPrompt)
-      setInputText("")
-    })
-  }, [])
+          : ` For example:
+- Ensure the JSON is valid and properly formatted
+- Check for missing required properties
+- Simplify complex nested configurations`
+      }`
+      setInputText(fixPrompt)
+      requestAnimationFrame(() => {
+        chatPanelRef.current?.sendTextMessage(fixPrompt)
+        setInputText("")
+      })
+    },
+    [latestChartType]
+  )
 
   const handleDocumentChange = useCallback(
     (document: string | null) => {
@@ -90,6 +109,10 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
     },
     [conversationId, queryClient]
   )
+
+  const handleExportImage = useCallback((dataUrl: string) => {
+    chatPanelRef.current?.addImageAttachment(dataUrl, "chart.png")
+  }, [])
 
   return (
     <div className="min-h-screen h-screen flex flex-col overflow-hidden relative">
@@ -116,17 +139,19 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
         onLayoutChange={handleLayoutChange}
       >
         <ResizablePanel id="preview" defaultSize={defaultLayout?.[0] ?? 70} minSize="50%">
-          <MermaidPanel
+          <ChartPanel
             className="h-full"
             conversationDetail={conversationDetail}
-            selectedMermaidMessageId={selectedMermaidMessageId}
-            onSelectedMermaidMessageIdChange={setSelectedMermaidMessageId}
+            selectedChartMessageId={selectedChartMessageId}
+            onSelectedChartMessageIdChange={setSelectedChartMessageId}
             isLoadingConversation={isLoadingConversation}
             onAppendInputText={handleAppendInputText}
             onFixError={handleFixError}
-            latestMermaidCode={latestMermaidCode}
-            isMermaidUpdating={isMermaidUpdating}
+            latestChartCode={latestChartCode}
+            latestChartType={latestChartType}
+            isChartUpdating={isChartUpdating}
             onDocumentChange={handleDocumentChange}
+            onExportImage={handleExportImage}
           />
         </ResizablePanel>
 
@@ -144,12 +169,14 @@ If this error is difficult to fix directly, try simplifying the syntax complexit
             conversationId={conversationId}
             conversationDetail={conversationDetail}
             isLoadingConversation={isLoadingConversation}
-            onSelectMermaidMessage={setSelectedMermaidMessageId}
+            onSelectChartMessage={setSelectedChartMessageId}
             inputText={inputText}
             onInputTextChange={setInputText}
-            latestMermaidCode={latestMermaidCode}
-            setLatestMermaidCode={setLatestMermaidCode}
-            setIsMermaidUpdating={setIsMermaidUpdating}
+            latestChartCode={latestChartCode}
+            latestChartType={latestChartType}
+            setLatestChartCode={setLatestChartCode}
+            setLatestChartType={setLatestChartType}
+            setIsChartUpdating={setIsChartUpdating}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

@@ -15,8 +15,13 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 import type { FileUIPart } from "ai"
 import { Brain, Globe, Paperclip } from "lucide-react"
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react"
 
 const ACCEPT_STRING = "image/*,video/*,text/markdown,.md"
+
+export interface ChatInputHandle {
+  addFiles: (files: File[]) => void
+}
 
 interface ChatInputProps {
   input: string
@@ -44,6 +49,25 @@ function AttachmentButton({ disabled }: { disabled: boolean }) {
       <Paperclip className="size-4" />
     </PromptInputButton>
   )
+}
+
+/** Internal component to bridge ref with attachment context */
+function AttachmentBridge({
+  onReady,
+}: {
+  onReady: (api: { addFiles: (files: File[]) => void }) => void
+}) {
+  const attachments = usePromptInputAttachments()
+  const initialized = useRef(false)
+
+  useEffect(() => {
+    if (!initialized.current) {
+      initialized.current = true
+      onReady({ addFiles: attachments.add })
+    }
+  }, [attachments.add, onReady])
+
+  return null
 }
 
 function ThinkingButton({ active, onToggle }: { active: boolean; onToggle: () => void }) {
@@ -98,19 +122,34 @@ async function processMarkdownFiles(message: PromptInputMessage): Promise<Prompt
   }
 }
 
-export function ChatInput({
-  input,
-  onInputChange,
-  onSubmit,
-  status = "ready",
-  disabled,
-  placeholder = "Describe the diagram you want to create...",
-  className,
-  thinking = false,
-  onThinkingChange,
-  webSearch = false,
-  onWebSearchChange,
-}: ChatInputProps) {
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput(
+  {
+    input,
+    onInputChange,
+    onSubmit,
+    status = "ready",
+    disabled,
+    placeholder = "Describe the diagram you want to create...",
+    className,
+    thinking = false,
+    onThinkingChange,
+    webSearch = false,
+    onWebSearchChange,
+  },
+  ref
+) {
+  const apiRef = useRef<{ addFiles: (files: File[]) => void } | null>(null)
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      addFiles: (files: File[]) => {
+        apiRef.current?.addFiles(files)
+      },
+    }),
+    []
+  )
+
   const handleSubmit = async (message: PromptInputMessage) => {
     const processed = await processMarkdownFiles(message)
     onSubmit(processed)
@@ -118,6 +157,7 @@ export function ChatInput({
 
   return (
     <PromptInput className={className} accept={ACCEPT_STRING} multiple onSubmit={handleSubmit}>
+      <AttachmentBridge onReady={(api) => (apiRef.current = api)} />
       <PromptInputBody>
         <PromptInputAttachments>
           {(file) => <PromptInputAttachment data={file} />}
@@ -144,4 +184,4 @@ export function ChatInput({
       </PromptInputFooter>
     </PromptInput>
   )
-}
+})

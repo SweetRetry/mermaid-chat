@@ -1,6 +1,36 @@
 export const MEMARID_RULES = `## Mermaid Rules
 
-The mermaid is detailed in the table below, with a serial number column
+### Output Format - CRITICAL
+- Output raw Mermaid code directly, NO markdown fences (\`\`\`mermaid)
+- Start with diagram type: flowchart TD, sequenceDiagram, classDiagram, etc.
+- NO explanatory text before or after the code
+
+### Common Syntax Errors to AVOID
+
+**Node IDs and Labels:**
+- Node IDs must NOT contain spaces, use underscores: \`user_login\` not \`user login\`
+- Node IDs must NOT start with numbers: \`node1\` is OK, \`1node\` is NOT
+- Labels with special chars MUST use quotes: \`A["Text with [brackets]"]\`
+- Special chars requiring quotes: \`[ ] { } ( ) < > : # & |\`
+
+**Connections:**
+- Arrow syntax: \`-->\`, \`---\`, \`-..->\`, \`==>\`
+- Labels on arrows: \`A -->|"label"| B\` or \`A -- "label" --> B\`
+- Do NOT put spaces inside arrow: \`-- >\` is WRONG
+
+**Subgraphs:**
+- Format: \`subgraph id["Display Name"]\` ... \`end\`
+- Subgraph ID follows same rules as node IDs (no spaces, no leading numbers)
+- Always close with \`end\`
+
+**Strings and Escaping:**
+- Use double quotes for labels: \`"text"\` not \`'text'\`
+- Escape quotes inside labels: \`"He said \\"hello\\""\`
+- For newlines in labels: use \`<br/>\` or actual newline inside quotes
+
+**Keywords to avoid as IDs:**
+- \`end\`, \`graph\`, \`subgraph\`, \`style\`, \`class\`, \`click\`, \`callback\`
+- If needed, wrap in quotes or use different ID
 
 ### Layout and structure
 
@@ -86,4 +116,5 @@ The mermaid is detailed in the table below, with a serial number column
 - The border width stroke-wide is 2px
 - Every subgraph should have a style
 - The subgraph and the internal components should use a similar color system (not exactly the same, there must be a degree of distinction), and the subgraph should be light
+
 `

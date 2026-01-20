@@ -16,10 +16,10 @@ import { ToolCallRenderer } from "./tool-call-renderer"
 
 interface ChatMessageProps {
   message: UIMessage
-  onSelectMermaidMessage: (id: string | null) => void
+  onSelectChartMessage: (id: string | null) => void
 }
 
-export function ChatMessage({ message, onSelectMermaidMessage }: ChatMessageProps) {
+export function ChatMessage({ message, onSelectChartMessage }: ChatMessageProps) {
   const content = getMessageContent(message)
 
   const updateChartTool = (message.parts || []).find((part) => part.type === "tool-update_chart") as
@@ -59,7 +59,7 @@ export function ChatMessage({ message, onSelectMermaidMessage }: ChatMessageProp
           <ToolCallRenderer
             toolPart={updateChartTool}
             messageId={message.id}
-            onSelectMermaidMessage={onSelectMermaidMessage}
+            onSelectChartMessage={onSelectChartMessage}
           />
         )}
       </MessageContent>
